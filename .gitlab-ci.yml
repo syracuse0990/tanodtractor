@@ -1,0 +1,65 @@
+stages:
+  - test
+
+sonarqube:
+  stage: test
+  image:
+    name: sonarsource/sonar-scanner-cli
+    entrypoint: [""]
+  script:
+    - |
+      # Set environment variables
+      SONAR_HOST="http://192.168.1.40:9000"
+      PROJECT_KEY="tanod-tractor"
+      SONAR_USER="admin"
+      SONAR_PASS="IappNetworks@1"  # Replace with GitLab CI/CD variable in production
+      TEAMS_WEBHOOK_URL="https://iapptechno.webhook.office.com/webhookb2/52681774-c101-45c5-820e-8718d3c3edf1@d3416f38-7580-4695-b068-5088be17c59c/IncomingWebhook/95c409571ef1438e8a354e452908c2df/3d07eaed-1bff-4455-bbe9-9327d5b4789c/V2F4LcyHyESJvR3CU9yskVXPng3crXPQqw92JMRFX66bw1"
+
+      # Run SonarQube analysis
+      sonar-scanner \
+        -D"sonar.host.url=$SONAR_HOST" \
+        -D"sonar.projectKey=$PROJECT_KEY" \
+        -D"sonar.login=sqa_395a6c14a10857ea47dd8eefeaf249d84d7050b7"
+
+      # Fetch Quality Gate Status
+      STATUS_URL="$SONAR_HOST/api/qualitygates/project_status?projectKey=$PROJECT_KEY"
+      STATUS_RESULT=$(curl -s "$STATUS_URL" | jq -r '.projectStatus.status // "UNKNOWN"')
+
+      # Fetch Issues
+      ISSUES_URL="$SONAR_HOST/api/measures/component?component=$PROJECT_KEY&metricKeys=bugs,vulnerabilities,code_smells,security_rating,reliability_rating,coverage"
+      ISSUES=$(curl -s -u "$SONAR_USER:$SONAR_PASS" "$ISSUES_URL")
+
+      # Extract Issue Details
+      BUGS=$(echo "$ISSUES" | jq -r '.component.measures[] | select(.metric=="bugs") | .value // "0"')
+      VULNERABILITIES=$(echo "$ISSUES" | jq -r '.component.measures[] | select(.metric=="vulnerabilities") | .value // "0"')
+      CODE_SMELLS=$(echo "$ISSUES" | jq -r '.component.measures[] | select(.metric=="code_smells") | .value // "0"')
+      SECURITY_RATING=$(echo "$ISSUES" | jq -r '.component.measures[] | select(.metric=="security_rating") | .value // "N/A"')
+      RELIABILITY_RATING=$(echo "$ISSUES" | jq -r '.component.measures[] | select(.metric=="reliability_rating") | .value // "N/A"')
+      COVERAGE=$(echo "$ISSUES" | jq -r '.component.measures[] | select(.metric=="coverage") | .value // "0.0"')
+
+      # Validate API Response
+      if [[ -z "$BUGS" || -z "$VULNERABILITIES" || -z "$CODE_SMELLS" || -z "$SECURITY_RATING" || -z "$RELIABILITY_RATING" || -z "$COVERAGE" ]]; then
+        echo "❌ Error: Could not fetch SonarQube metrics"
+        exit 1
+      fi
+
+      # Format JSON for Microsoft Teams
+      MESSAGE=$(cat <<EOF
+      {
+        "text": "🔍 *SonarQube Analysis for $PROJECT_KEY* \n
+        🛡 Security Rating: *$SECURITY_RATING* \n
+        ⚠ Reliability Rating: *$RELIABILITY_RATING* \n
+        🐞 Bugs: *$BUGS* \n
+        🔥 Vulnerabilities: *$VULNERABILITIES* \n
+        🏭 Code Smells: *$CODE_SMELLS* \n
+        📊 Coverage: *$COVERAGE%* \n
+        🌐 [View in SonarQube]($SONAR_HOST/dashboard?id=$PROJECT_KEY)"
+      }
+      EOF
+      )
+
+      # Send Message to Microsoft Teams
+      curl -H "Content-Type: application/json" -d "$MESSAGE" "$TEAMS_WEBHOOK_URL"
+
+  only:
+    - main 
