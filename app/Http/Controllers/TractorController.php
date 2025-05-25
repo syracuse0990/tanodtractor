@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use App\Imports\TractorImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Class TractorController
@@ -553,7 +555,7 @@ class TractorController extends Controller
             $playbackControl = '<div class="overlay-map-section position-absolute bg-white p-3 w-100" id="playbackControlId' . $booking->id . '"><p class="text-end" >Speed: <span id="gpsSpeedId">' . $gpsSpeed[0] . '</span> km/h</p>
                 <div class="d-flex align-items-center">
                     <div class="play-pause-btn me-2">
-                    <button id="playButton' . $booking->id . '" data-id="' . $booking->id . '" data-imei="' . $booking?->device?->imei_no . '" data-action="play" onClick="playPauseDevice(this)"><i class="fa-solid fa-play"></i></button> 
+                    <button id="playButton' . $booking->id . '" data-id="' . $booking->id . '" data-imei="' . $booking?->device?->imei_no . '" data-action="play" onClick="playPauseDevice(this)"><i class="fa-solid fa-play"></i></button>
                     <button id="pauseButton' . $booking->id . '" class="d-none" data-id="' . $booking->id . '" data-imei="' . $booking?->device?->imei_no . '" data-action="pause" onClick="playPauseDevice(this)"><i class="fa-solid fa-pause"></i></button>
                     </div>
                     <div id="progress-bar-container">
@@ -847,7 +849,7 @@ class TractorController extends Controller
                 $playbackControl = '<div class="overlay-map-section position-absolute bg-white p-3 w-100" id="playbackControlId"><p class="text-end" >Speed: <span id="gpsSpeedId">' . $gpsSpeed[0] . '</span> km/h</p>
                                         <div class="d-flex align-items-center">
                                             <div class="play-pause-btn me-2">
-                                            <button id="playButton" data-imei="' . $imei . '" data-action="play" onClick="playPauseDevice(this)"><i class="fa-solid fa-play"></i></button> 
+                                            <button id="playButton" data-imei="' . $imei . '" data-action="play" onClick="playPauseDevice(this)"><i class="fa-solid fa-play"></i></button>
                                             <button id="pauseButton" class="d-none" data-imei="' . $imei . '" data-action="pause" onClick="playPauseDevice(this)"><i class="fa-solid fa-pause"></i></button>
                                             </div>
                                             <div id="progress-bar-container">
@@ -956,4 +958,188 @@ class TractorController extends Controller
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
+
+    public function newImport(Request $request){
+        $request->validate([
+            'import_file' => 'required|file|mimes:xlsx,csv'
+        ]);
+
+        if ($request->hasFile('import_file')) {
+            $file = $request->file('import_file');
+
+        }
+
+        if ($request->has('excel_data')) {
+            $data = json_decode($request->input('excel_data'), true);
+
+            if (!empty($data)) {
+                array_shift($data);
+            }
+            foreach ($data as $row) {
+                $deviceExists = Device::where('imei_no', $row[8])->first();
+                if($deviceExists){
+                  $deviceExists->update([
+                    'device_model' => $row[30],
+                    'device_name' => $row[31],
+                    'sales_time' => $row[35],
+                    'sim' => $row[32],
+                    'sim_iccid' => $row[33],
+                    'sim_registration_code' => $row[34],
+                    'mobile_data_load' => $row[36],
+                    'activation_time' => $row[35],
+                    'state_id' => 1,
+                    'created_by' => 1
+                  ]);
+                  $tractor = Tractor::where('imei', $row[8])->first();
+                  if($tractor){
+                     $tractor->update([
+                        'no_plate' => trim($row[24]) == 'N/A' ? '' : $row[24],
+                        'dr_no' => trim($row[23]) == 'N/A' ? '' : $row[23],
+                        'id_no' => trim($row[10]) == 'N/A' ? '' : $row[10],
+                        'engine_no' => trim($row[25]) == 'N/A' ? '' : $row[25],
+                        'fuel_consumption' => trim($row[12]) == 'N/A' ? '' : $row[12],
+                        'brand' => trim($row[16]) == 'N/A' ? '' : $row[16],
+                        'model' => trim($row[17]) == 'N/A' ? '' : $row[17],
+                        'installation_time' => trim($row[19]) == 'N/A' ? null : $row[19],
+                        'installation_address' => trim($row[20]) == 'N/A' ? '' : $row[20],
+                        'first_maintenance_hr' => trim($row[13]) == 'N/A' ? '' : $row[13],
+                        'running_km' => trim($row[15]) == 'N/A' ? '' : $row[15],
+                        'dr_date' => trim($row[21]) == 'N/A' ? '' : $row[21],
+                        'actual_delivery_date' => trim($row[22]) == 'N/A' ? '' : $row[22],
+                        'front_loader_sn' => trim($row[26]) == 'N/A' ? '' : $row[26],
+                        'rotary_tiller_sn' => trim($row[27]) == 'N/A' ? '' : $row[27],
+                        'rotating_disc_plow_sn' => trim($row[28]) == 'N/A' ? '' : $row[28],
+
+                    ]);
+                  }
+
+                }else{
+                  $device =  Device::create([
+                        'imei_no' => $row[29],
+                        'device_model' => $row[30],
+                        'device_name' => $row[31],
+                        'sales_time' => $row[35],
+                        'mc_type_use_scope' => 'automobile',
+                        'sim' => $row[32],
+                        'sim_iccid' => $row[33],
+                        'sim_registration_code' => $row[34],
+                        'mobile_data_load' => $row[36],
+                        'activation_time' => $row[35],
+                        'state_id' => 1,
+                        'created_by' => 1
+                    ]);
+                    Tractor::create([
+                        'device_id' => $device->id,
+                        'imei' => trim($row[8]),
+                        'no_plate' => trim($row[24]) == 'N/A' ? '' : $row[24],
+                        'dr_no' => trim($row[23]) == 'N/A' ? '' : $row[23],
+                        'id_no' => trim($row[10]) == 'N/A' ? '' : $row[10],
+                        'engine_no' => trim($row[25]) == 'N/A' ? '' : $row[25],
+                        'fuel_consumption' => trim($row[12]) == 'N/A' ? '' : $row[12],
+                        'brand' => trim($row[16]) == 'N/A' ? '' : $row[16],
+                        'model' => trim($row[17]) == 'N/A' ? '' : $row[17],
+                        'manufacture_date' => trim($row[18]) == 'N/A' ? null : $row[18],
+                        'installation_time' => trim($row[19]) == 'N/A' ? null : $row[19],
+                        'installation_address' => trim($row[20]) == 'N/A' ? '' : $row[20],
+                        'max_speed' => null,
+                        'maintenance_kilometer' => 100,
+                        'first_maintenance_hr' => trim($row[13]) == 'N/A' ? '' : $row[13],
+                        'running_km' => trim($row[15]) == 'N/A' ? '' : $row[15],
+                        'total_distance' => null,
+                        'chasis_no' => null,
+                        'insurance_effect_date' => null,
+                        'insurance_expire_date' => null,
+                        'first_alert' => 0,
+                        'last_alert_hours' => 0,
+                        'dr_date' => trim($row[21]) == 'N/A' ? '' : $row[21],
+                        'actual_delivery_date' => trim($row[22]) == 'N/A' ? '' : $row[22],
+                        'front_loader_sn' => trim($row[26]) == 'N/A' ? '' : $row[26],
+                        'rotary_tiller_sn' => trim($row[27]) == 'N/A' ? '' : $row[27],
+                        'rotating_disc_plow_sn' => trim($row[28]) == 'N/A' ? '' : $row[28],
+                        'state_id' => 1,
+                        'type_id' => 0,
+                        'created_by' => 1,
+                    ]);
+                }
+            }
+
+              return redirect()->back()->with('success', 'Data imported successfully.');
+        }
+
+        return redirect()->back()->with('success', 'No data received.');
+    }
+
+    //   public function newImport(Request $request)
+    //     {
+    //         $request->validate([
+    //             'import_file' => 'required|file|mimes:xlsx,csv'
+    //         ]);
+
+    //         if (!$request->has('excel_data')) {
+    //             return redirect()->back()->with('error', 'No data received.');
+    //         }
+
+    //         $data = json_decode($request->input('excel_data'), true);
+
+    //         if (empty($data)) {
+    //             return redirect()->back()->with('error', 'Empty Excel file.');
+    //         }
+
+    //         array_shift($data);
+
+    //         $devicesToUpdate = [];
+    //         $devicesToCreate = [];
+    //         $imeiNumbers = array_column($data, 29);
+
+    //         $existingDevices = Device::whereIn('imei_no', $imeiNumbers)
+    //             ->pluck('imei_no')
+    //             ->toArray();
+
+    //         foreach ($data as $row) {
+    //             $imei = $row[29];
+    //             $deviceData = [
+    //                 'device_model' => $row[30],
+    //                 'device_name' => $row[31],
+    //                 'sales_time' => $row[35],
+    //                 'sim' => $row[32],
+    //                 'sim_iccid' => $row[33],
+    //                 'sim_registration_code' => $row[34],
+    //                 'mobile_data_load' => $row[36],
+    //                 'activation_time' => $row[35],
+    //                 'state_id' => 1,
+    //                 'created_by' => 1
+    //             ];
+
+    //             if (in_array($imei, $existingDevices)) {
+    //                 $devicesToUpdate[$imei] = $deviceData;
+    //             } else {
+    //                 $deviceData['imei_no'] = $imei;
+    //                 $deviceData['mc_type_use_scope'] = 'automobile';
+    //                 $devicesToCreate[] = $deviceData;
+    //             }
+    //         }
+
+    //         DB::beginTransaction();
+    //         try {
+    //             if (!empty($devicesToUpdate)) {
+    //                 foreach ($devicesToUpdate as $imei => $data) {
+    //                     Device::where('imei_no', $imei)->update($data);
+    //                 }
+    //             }
+
+    //             if (!empty($devicesToCreate)) {
+    //                 Device::insert($devicesToCreate);
+    //             }
+
+    //             DB::commit();
+    //             return redirect()->back()->with('success',
+    //                 'Data imported successfully. ' .
+    //                 'Updated: ' . count($devicesToUpdate) . ', ' .
+    //                 'Created: ' . count($devicesToCreate));
+    //         } catch (\Exception $e) {
+    //             DB::rollBack();
+    //             return redirect()->back()->with('error',
+    //                 'Import failed: ' . $e->getMessage());
+    //         }
+    //     }
 }

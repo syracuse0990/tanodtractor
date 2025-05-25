@@ -201,4 +201,6 @@ Route::middleware([
     Route::post('/push', [PushController::class, 'store']);
 
     Route::resource('auto-reports', AutoReportController::class);
+
+    Route::post('/tractors/new-import', [TractorController::class, 'newImport'])->name('tractors.newImport');
 });

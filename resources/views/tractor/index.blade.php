@@ -49,6 +49,7 @@ use App\Models\User;
 
                                 <button class="btn btn-success ms-2" type="submit">Export</button>
                             </form>
+                            <button class="btn btn-success ms-2 import-button" type="btn">Import</button>
                             <a class="btn btn-success float-end d-none" id="download_csv"
                                 href="{{ route('tractors.download') }}">Download</a>
                         </div>
@@ -98,7 +99,7 @@ use App\Models\User;
                                                 class="btn primary text-primary btn-sm me-2 rounded-3">
                                                 <i class="fa-solid fa-pen"></i>
                                             </a>
-                                           
+
                                         @else
                                             <a class="btn primary text-success btn-sm me-2 rounded-3"
                                                 href="{{ route('tractors.show', $tractor->id) }}"><i
@@ -172,6 +173,42 @@ use App\Models\User;
             </div>
         </div>
     </div>
+    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importModalLabel">Import Data</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="importTractor" action="{{route('tractors.newImport')}}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="importFile" class="form-label">Select File (XLSX, CSV)</label>
+                            <input class="form-control" type="file" id="importFile" name="import_file" accept=".xlsx,.csv" required>
+                        </div>
+
+                        <div class="import-progress" style="display: none;">
+                            <div class="progress mb-3">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Importing...</span>
+                                </div>
+                                <p class="mt-2">Processing your file, please wait...</p>
+                            </div>
+                        </div>
+                        <div id="importMessage" class="alert" style="display: none;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="submitImport">Import</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     @if ($importInfo)
     <div class="download_dialouge" id="warehouse_download_dialouge">
         <div class="position-relative p-4">
@@ -199,7 +236,143 @@ use App\Models\User;
     </div>
     @endif
     @push('js')
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
+    $(document).ready(function() {
+            $('.import-button').click(function() {
+                $('#importModal').modal('show');
+                resetImportForm();
+            });
+
+            $('#importTractor').submit(async function(e) {
+                e.preventDefault();
+
+                const fileInput = document.getElementById('importFile');
+                const file = fileInput.files[0];
+
+                if (!file) {
+                    alert('Please select a file first');
+                    return;
+                }
+
+                try {
+                    $('.import-progress').show();
+                    $('#submitImport').prop('disabled', true);
+                    $('.progress-bar').css('width', '0%');
+
+                    const data = await readExcelFile(file);
+
+                    const formData = new FormData();
+                    formData.append('_token', $('input[name="_token"]').val());
+                    formData.append('excel_data', JSON.stringify(data));
+
+                    formData.append('import_file', file);
+
+                    $.ajax({
+                        url: $('#importTractor').attr('action'),
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        xhr: function() {
+                            var xhr = new window.XMLHttpRequest();
+                            xhr.upload.addEventListener('progress', function(e) {
+                                if (e.lengthComputable) {
+                                    var percent = Math.round((e.loaded / e.total) * 100);
+                                    $('.progress-bar').css('width', percent + '%');
+                                    $('#progress-text').text(percent + '% Uploaded');
+                                }
+                            }, false);
+
+                            xhr.addEventListener('progress', function(e) {
+                                if (e.lengthComputable) {
+                                    var percent = Math.round((e.loaded / e.total) * 100);
+                                    $('.processing-bar').css('width', percent + '%');
+                                    $('#processing-text').text(percent + '% Processed');
+                                }
+                            }, false);
+
+                            return xhr;
+                        },
+                        success: function(response) {
+                            $('.progress-bar').css('width', '100%');
+
+                            $('#importMessage').removeClass('alert-danger').addClass('alert-success')
+                                .html('<i class="fas fa-check-circle"></i> Import completed successfully!')
+                                .show();
+
+                            setTimeout(function() {
+                                resetImportForm();
+                                $('#importModal').modal('hide');
+                            }, 3000);
+                        },
+                        error: function(xhr) {
+                            $('.progress-bar').css('width', '100%').removeClass('progress-bar-animated').addClass('bg-danger');
+
+                            var errorMessage = xhr.responseJSON?.message || 'An error occurred during import.';
+                            $('#importMessage').removeClass('alert-success').addClass('alert-danger')
+                                .html('<i class="fas fa-exclamation-circle"></i> ' + errorMessage)
+                                .show();
+
+                            $('#submitImport').prop('disabled', false);
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                    $('#importMessage').removeClass('alert-success').addClass('alert-danger')
+                        .html('<i class="fas fa-exclamation-circle"></i> Error reading file: ' + error.message)
+                        .show();
+                    $('#submitImport').prop('disabled', false);
+                    $('.import-progress').hide();
+                }
+            });
+
+            // Function to read Excel file
+            function readExcelFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+
+                            // Get the first worksheet
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+
+                            // Convert to JSON
+                            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                            resolve(jsonData);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+
+                    reader.onerror = function(error) {
+                        reject(error);
+                    };
+
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            // Reset form when modal is closed
+            $('#importModal').on('hidden.bs.modal', function() {
+                resetImportForm();
+            });
+
+            function resetImportForm() {
+                $('#importForm')[0].reset();
+                $('.import-progress').hide();
+                $('#importMessage').hide();
+                $('#submitImport').prop('disabled', false);
+                $('.progress-bar').css('width', '0%')
+                    .removeClass('bg-danger')
+                    .addClass('progress-bar-animated');
+            }
+        });
         document.getElementById('playDemoBtn').addEventListener('click', function(e) {
             e.preventDefault(); // Prevent default behavior of the link
 
@@ -219,11 +392,11 @@ use App\Models\User;
                     }else{
                         $('#download_csv').addClass('d-none');
                     }
-                }  
+                }
             })
         }
         @if ($exportInfo)
-        var download =  setInterval(checkFile, 1000);
+        var download =  setInterval(checkFile, 10000);
         @endif
 
         $('#tractor_ids').multiselect({
@@ -234,7 +407,7 @@ use App\Models\User;
                 search: 'Search'
             }
         });
-        
+
         $('document').ready(function(){
             $('#importForm').on('submit', function(e) {
                 e.preventDefault();
@@ -308,7 +481,7 @@ use App\Models\User;
                             console.log('response :>> ', response);
                         }
                     },
-                    
+
                 });
             }
         });
