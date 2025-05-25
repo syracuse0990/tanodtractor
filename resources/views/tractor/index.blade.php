@@ -305,6 +305,7 @@ use App\Models\User;
                             setTimeout(function() {
                                 resetImportForm();
                                 $('#importModal').modal('hide');
+                                window.location.replace(window.location.href);
                             }, 3000);
                         },
                         error: function(xhr) {

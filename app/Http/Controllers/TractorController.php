@@ -977,6 +977,8 @@ class TractorController extends Controller
             }
             foreach ($data as $row) {
                 $deviceExists = Device::where('imei_no', $row[8])->first();
+
+
                 if($deviceExists){
                   $deviceExists->update([
                     'device_model' => $row[30],
@@ -1014,6 +1016,7 @@ class TractorController extends Controller
                   }
 
                 }else{
+                 $group = TractorGroup::where('name', 'LIKE', '%' . $row[0] . '%')->first();
                   $device =  Device::create([
                         'imei_no' => $row[29],
                         'device_model' => $row[30],
@@ -1028,7 +1031,7 @@ class TractorController extends Controller
                         'state_id' => 1,
                         'created_by' => 1
                     ]);
-                    Tractor::create([
+                  $tractor = Tractor::create([
                         'device_id' => $device->id,
                         'imei' => trim($row[8]),
                         'no_plate' => trim($row[24]) == 'N/A' ? '' : $row[24],
@@ -1060,6 +1063,25 @@ class TractorController extends Controller
                         'type_id' => 0,
                         'created_by' => 1,
                     ]);
+
+                    if ($group) {
+                        $device_ids = $group->device_ids ?? [];
+                        $tractor_ids = $group->tractor_ids ?? [];
+
+                        if (!in_array($device->id, $device_ids)) {
+                            $device_ids[] = $device->id;
+                        }
+
+                        if (!in_array($tractor->id, $tractor_ids)) {
+                            $tractor_ids[] = $tractor->id;
+                        }
+
+                        $group->update([
+                            'device_ids' => $device_ids,
+                            'tractor_ids' => $tractor_ids,
+                        ]);
+                    }
+
                 }
             }
 
