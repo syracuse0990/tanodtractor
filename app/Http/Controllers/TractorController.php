@@ -959,81 +959,40 @@ class TractorController extends Controller
         }
     }
 
-    public function newImport(Request $request){
-        $request->validate([
-            'import_file' => 'required|file|mimes:xlsx,csv'
-        ]);
+public function newImport(Request $request)
+{
+    $request->validate([
+        'import_file' => 'required|file|mimes:xlsx,csv'
+    ]);
 
-        if ($request->hasFile('import_file')) {
-            $file = $request->file('import_file');
+    if ($request->hasFile('import_file')) {
+        $file = $request->file('import_file');
+    }
 
+    if ($request->has('excel_data')) {
+        $data = json_decode($request->input('excel_data'), true);
+
+        if (empty($data)) {
+            return redirect()->back()->with('error', 'No data found in the file.');
         }
+        array_shift($data);
 
-        if ($request->has('excel_data')) {
-            $data = json_decode($request->input('excel_data'), true);
+        foreach ($data as $row) {
+            try {
+                if (empty($row[8])) {
+                    continue;
+                }
 
-            if (!empty($data)) {
-                array_shift($data);
-            }
-            foreach ($data as $row) {
-                $deviceExists = Device::where('imei_no', $row[8])->first();
+                $imei = trim($row[8]);
+                $tractorExists = Tractor::where('imei', $imei)->exists();
+                $deviceExists = Device::where('imei_no', $imei)->exists();
 
+                $tractor = null;
+                $device = null;
 
-                if($deviceExists){
-                  $deviceExists->update([
-                    'device_model' => $row[30],
-                    'device_name' => $row[31],
-                    'sales_time' => $row[35],
-                    'sim' => $row[32],
-                    'sim_iccid' => $row[33],
-                    'sim_registration_code' => $row[34],
-                    'mobile_data_load' => $row[36],
-                    'activation_time' => $row[35],
-                    'state_id' => 1,
-                    'created_by' => 1
-                  ]);
-                  $tractor = Tractor::where('imei', $row[8])->first();
-                  if($tractor){
-                     $tractor->update([
-                        'no_plate' => trim($row[24]) == 'N/A' ? '' : $row[24],
-                        'dr_no' => trim($row[23]) == 'N/A' ? '' : $row[23],
-                        'id_no' => trim($row[10]) == 'N/A' ? '' : $row[10],
-                        'engine_no' => trim($row[25]) == 'N/A' ? '' : $row[25],
-                        'fuel_consumption' => trim($row[12]) == 'N/A' ? '' : $row[12],
-                        'brand' => trim($row[16]) == 'N/A' ? '' : $row[16],
-                        'model' => trim($row[17]) == 'N/A' ? '' : $row[17],
-                        'installation_time' => trim($row[19]) == 'N/A' ? null : $row[19],
-                        'installation_address' => trim($row[20]) == 'N/A' ? '' : $row[20],
-                        'first_maintenance_hr' => trim($row[13]) == 'N/A' ? '' : $row[13],
-                        'running_km' => trim($row[15]) == 'N/A' ? '' : $row[15],
-                        'dr_date' => trim($row[21]) == 'N/A' ? '' : $row[21],
-                        'actual_delivery_date' => trim($row[22]) == 'N/A' ? '' : $row[22],
-                        'front_loader_sn' => trim($row[26]) == 'N/A' ? '' : $row[26],
-                        'rotary_tiller_sn' => trim($row[27]) == 'N/A' ? '' : $row[27],
-                        'rotating_disc_plow_sn' => trim($row[28]) == 'N/A' ? '' : $row[28],
-
-                    ]);
-                  }
-
-                }else{
-                 $group = TractorGroup::where('name', 'LIKE', '%' . $row[0] . '%')->first();
-                  $device =  Device::create([
-                        'imei_no' => $row[29],
-                        'device_model' => $row[30],
-                        'device_name' => $row[31],
-                        'sales_time' => $row[35],
-                        'mc_type_use_scope' => 'automobile',
-                        'sim' => $row[32],
-                        'sim_iccid' => $row[33],
-                        'sim_registration_code' => $row[34],
-                        'mobile_data_load' => $row[36],
-                        'activation_time' => $row[35],
-                        'state_id' => 1,
-                        'created_by' => 1
-                    ]);
-                  $tractor = Tractor::create([
-                        'device_id' => $device->id,
-                        'imei' => trim($row[8]),
+                if (!$tractorExists) {
+                    $tractor = Tractor::create([
+                        'imei' => $imei,
                         'no_plate' => trim($row[24]) == 'N/A' ? '' : $row[24],
                         'dr_no' => trim($row[23]) == 'N/A' ? '' : $row[23],
                         'id_no' => trim($row[10]) == 'N/A' ? '' : $row[10],
@@ -1063,33 +1022,59 @@ class TractorController extends Controller
                         'type_id' => 0,
                         'created_by' => 1,
                     ]);
-
-                    if ($group) {
-                        $device_ids = $group->device_ids ?? [];
-                        $tractor_ids = $group->tractor_ids ?? [];
-
-                        if (!in_array($device->id, $device_ids)) {
-                            $device_ids[] = $device->id;
-                        }
-
-                        if (!in_array($tractor->id, $tractor_ids)) {
-                            $tractor_ids[] = $tractor->id;
-                        }
-
-                        $group->update([
-                            'device_ids' => $device_ids,
-                            'tractor_ids' => $tractor_ids,
-                        ]);
-                    }
-
                 }
-            }
 
-              return redirect()->back()->with('success', 'Data imported successfully.');
+                if (!$deviceExists && !empty($row[29])) {
+                    $device = Device::create([
+                        'imei_no' => $imei,
+                        'device_model' => $row[30] ?? '',
+                        'device_name' => $row[31] ?? '',
+                        'sales_time' => $row[35] ?? null,
+                        'mc_type_use_scope' => 'automobile',
+                        'sim' => $row[32] ?? '',
+                        'sim_iccid' => $row[33] ?? '',
+                        'sim_registration_code' => $row[34] ?? '',
+                        'mobile_data_load' => $row[36] ?? '',
+                        'activation_time' => $row[35] ?? null,
+                        'state_id' => 1,
+                        'created_by' => 1
+                    ]);
+                }
+
+                if ((!$tractorExists && $tractor) || (!$deviceExists && $device)) {
+                    if (!empty($row[0])) {
+                        $group = TractorGroup::where('name', 'LIKE', '%' . $row[0] . '%')->first();
+
+                        if ($group) {
+                            $device_ids = $group->device_ids ?? [];
+                            $tractor_ids = $group->tractor_ids ?? [];
+
+                            if ($device && !in_array($device->id, $device_ids)) {
+                                $device_ids[] = $device->id;
+                            }
+
+                            if ($tractor && !in_array($tractor->id, $tractor_ids)) {
+                                $tractor_ids[] = $tractor->id;
+                            }
+
+                            $group->update([
+                                'device_ids' => $device_ids,
+                                'tractor_ids' => $tractor_ids,
+                            ]);
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Import error for row: ' . json_encode($row) . ' - Error: ' . $e->getMessage());
+                continue;
+            }
         }
 
-        return redirect()->back()->with('success', 'No data received.');
+        return redirect()->back()->with('success', 'Data imported successfully.');
     }
+
+    return redirect()->back()->with('error', 'No data received.');
+}
 
     //   public function newImport(Request $request)
     //     {
