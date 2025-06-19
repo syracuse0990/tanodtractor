@@ -330,7 +330,7 @@ class ReportController extends Controller
 
         $activatedDevices = Device::whereNotNull('activation_time')
             ->where('expiration_date', '>', $now)
-            ->get();
+            ->paginate(10);
 
         foreach($activatedDevices as $device){
             dump( $jimiService->getDeviceMileage( [$device->imei_no], $startTime, $endTime, ) );
@@ -358,29 +358,52 @@ class ReportController extends Controller
     /**
      * Get device metrics from Jimi API
      */
-    private function getDeviceMetrics(JimiService $jimiService, $devices, $startTime, $endTime): array
+  private function getDeviceMetrics(JimiService $jimiService, $devices, $startTime, $endTime): array
     {
         $metrics = [];
 
         foreach ($devices as $device) {
-            if ($device->imei) {
+            if ($device->imei_no) {
                 try {
                     $response = $jimiService->getDeviceMileage(
-                        [$device->imei],
+                        [$device->imei_no],
                         $startTime,
                         $endTime
                     );
 
+                    // Initialize with default values
+                    $metrics[$device->id] = $this->getDefaultMetrics();
 
-                    if (isset($response['result']['mileageList'][0])) {
-                        $mileageData = $response['result']['mileageList'][0];
+                    if ($response['code'] === 0 && !empty($response['result'])) {
+                        $totalDistance = 0;
+                        $totalDuration = 0;
+                        $speedSum = 0;
+                        $tripCount = count($response['result']);
+
+                        // Calculate aggregates from all trips
+                        foreach ($response['result'] as $trip) {
+                            $totalDistance += (float) $trip['distance'];
+                            $totalDuration += (int) $trip['runTimeSecond'];
+                            $speedSum += (float) $trip['avgSpeed'];
+                        }
+
+                        // Calculate averages
+                        $averageSpeed = $tripCount > 0 ? $speedSum / $tripCount : 0;
+
+                        // Update metrics
                         $metrics[$device->id] = [
-                            'total_distance' => round($mileageData['mileage'] / 1000, 2),
-                            'average_speed' => round($mileageData['avgSpeed'], 2),
-                            'total_trips' => $mileageData['tripCount'],
-                            'total_duration' => round($mileageData['duration'] / 3600, 2),
+                            'total_distance' => round($totalDistance / 1000, 2), // Convert meters to km
+                            'average_speed' => round($averageSpeed, 2),
+                            'total_trips' => $tripCount,
+                            'total_duration' => round($totalDuration / 3600, 2), // Convert seconds to hours
                         ];
                     }
+
+                    // Add total mileage from data if available
+                    if (!empty($response['data'][0]['totalMileage'])) {
+                        $metrics[$device->id]['odometer'] = round($response['data'][0]['totalMileage'] / 1000, 2);
+                    }
+
                 } catch (\Exception $e) {
                     \Log::error("Failed to get metrics for device {$device->id}: " . $e->getMessage());
                     $metrics[$device->id] = $this->getDefaultMetrics();
@@ -393,9 +416,6 @@ class ReportController extends Controller
         return $metrics;
     }
 
-    /**
-     * Default metrics when data is not available
-     */
     private function getDefaultMetrics(): array
     {
         return [
@@ -403,6 +423,7 @@ class ReportController extends Controller
             'average_speed' => 0,
             'total_trips' => 0,
             'total_duration' => 0,
+            'odometer' => 0,
         ];
     }
 
