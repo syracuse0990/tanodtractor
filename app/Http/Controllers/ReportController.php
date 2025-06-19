@@ -362,7 +362,7 @@ class ReportController extends Controller
         $metrics = [];
 
         foreach ($devices as $device) {
-            if ($device->imei) {
+            if ($device->imei_no) {
                 // try {
                     $response = $jimiService->getDeviceMileage(
                         [$device->imei],
