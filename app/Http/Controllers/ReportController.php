@@ -326,18 +326,8 @@ class ReportController extends Controller
         $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
         $endTime = $now->format('Y-m-d H:i:s');
 
-        // Device counts from database
-        // $deviceCounts = [
-        //     'total' => Device::count(),
-        //     'active' => Device::whereNotNull('activation_time')
-        //         ->where('expiration_date', '>', $now)
-        //         ->count(),
-        //     'inactive' => Device::whereNull('activation_time')->count(),
-        //     'expired' => Device::where('expiration_date', '<', $now)->count(),
-        //     'expiringSoon' => Device::whereBetween('expiration_date', [$now, $oneMonthFromNow])->count(),
-        // ];
 
-        // Get paginated devices
+
         $activatedDevices = Device::whereNotNull('activation_time')
             ->where('expiration_date', '>', $now)
             ->paginate(10);
@@ -372,14 +362,14 @@ class ReportController extends Controller
         foreach ($devices as $device) {
             if ($device->imei) {
                 try {
-                    // Get mileage data for each device
                     $response = $jimiService->getDeviceMileage(
                         [$device->imei],
                         $startTime,
                         $endTime
                     );
 
-                    // Extract relevant metrics from response
+                    dd($response);
+
                     if (isset($response['result']['mileageList'][0])) {
                         $mileageData = $response['result']['mileageList'][0];
                         $metrics[$device->id] = [
@@ -390,7 +380,6 @@ class ReportController extends Controller
                         ];
                     }
                 } catch (\Exception $e) {
-                    // Log error and set default values
                     \Log::error("Failed to get metrics for device {$device->id}: " . $e->getMessage());
                     $metrics[$device->id] = $this->getDefaultMetrics();
                 }
