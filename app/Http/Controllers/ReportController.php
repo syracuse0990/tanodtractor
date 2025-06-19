@@ -365,7 +365,7 @@ class ReportController extends Controller
             if ($device->imei_no) {
                 // try {
                     $response = $jimiService->getDeviceMileage(
-                        [$device->imei],
+                        [$device->imei_no],
                         $startTime,
                         $endTime
                     );
