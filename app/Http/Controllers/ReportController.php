@@ -340,7 +340,6 @@ class ReportController extends Controller
             ->paginate(10);
 
         $deviceMetrics = $this->getDeviceMetrics($jimiService, $activatedDevices, $startTime, $endTime);
-        dd( $deviceMetrics );
         return view('report.device-reports', compact(
             'activatedDevices',
             'inActivatedDevices',
@@ -373,7 +372,7 @@ class ReportController extends Controller
 
                     if (isset($response['result']['mileageList'][0])) {
                         $mileageData = $response['result']['mileageList'][0];
-                        $metrics[$device->id] = [
+                        $metrics[$device->imei_no] = [
                             'total_distance' => round($mileageData['mileage'] / 1000, 2),
                             'average_speed' => round($mileageData['avgSpeed'], 2),
                             'total_trips' => $mileageData['tripCount'],
@@ -385,7 +384,7 @@ class ReportController extends Controller
                 //     $metrics[$device->id] = $this->getDefaultMetrics();
                 // }
             } else {
-                $metrics[$device->id] = $this->getDefaultMetrics();
+                $metrics[$device->imei_no] = $this->getDefaultMetrics();
             }
         }
 
