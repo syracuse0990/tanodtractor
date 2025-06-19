@@ -57,118 +57,120 @@
                 </div>
             </div>
         </div>
-     <div class="row my-4">
-    <div class="col-md-12">
-        <div class="card shadow-sm border-0">
-            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: #43dcaf;">
-                <h5 class="mb-0"><i class="fas fa-tablet-alt me-2"></i>Inactivated Devices</h5>
-                <div class="dropdown">
-                    <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="devicesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        Options
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="devicesDropdown">
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>Export Data</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-filter me-2"></i>Filter Devices</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th scope="col" class="ps-4">Device Name</th>
-                                <th scope="col">Total Distance (km)</th>
-                                <th scope="col">Average Speed (km/h)</th>
-                                <th scope="col">Total Trips</th>
-                                <th scope="col">Total Duration (Hr)</th>
-                                <th scope="col" class="text-end pe-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($inActivatedDevices as $device)
-                            <tr>
-                                <th scope="row" class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-tablet-alt text-primary me-2"></i>
-                                        <span>{{ $device->device_name }}</span>
-                                    </div>
-                                </th>
-                                <td>0</td>
-                                <td>0</td>
-                                <td>0</td>
-                                <td>0</td>
-                                <td class="text-end pe-4">
-                                    <span class="badge bg-red bg-opacity-10 text-white">InActive</span>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {{-- {!! $inActivatedDevices->appends(request()->except('page'))->links('custom-pagination') !!} --}}
-        </div>
-    </div>
-</div>
 
-<!-- Activated Devices Table -->
-<div class="row my-4">
-    <div class="col-md-12">
-        <div class="card shadow-sm border-0">
-            <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: #43dcaf;">
-                <h5 class="mb-0"><i class="fas fa-tablet-alt me-2"></i>Activated Devices</h5>
-                <div class="dropdown">
-                    <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="activatedDevicesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        Options
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="activatedDevicesDropdown">
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>Export Data</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-filter me-2"></i>Filter Devices</a></li>
-                    </ul>
+
+    <!-- Activated Devices Table -->
+    <div class="row my-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: #43dcaf;">
+                    <h5 class="mb-0"><i class="fas fa-tablet-alt me-2"></i>Activated Devices</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="activatedDevicesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            Options
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="activatedDevicesDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>Export Data</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-filter me-2"></i>Filter Devices</a></li>
+                        </ul>
+                    </div>
                 </div>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th scope="col" class="ps-4">Device Name</th>
-                                <th scope="col">IMEI</th>
-                                <th scope="col">Total Distance (km)</th>
-                                <th scope="col">Average Speed (km/h)</th>
-                                <th scope="col">Total Trips</th>
-                                <th scope="col">Total Duration (Hr)</th>
-                                <th scope="col" class="text-end pe-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($activatedDevices as $device)
-                            <tr>
-                                <th scope="row" class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-tablet-alt text-primary me-2"></i>
-                                        <span>{{ $device->device_name }}</span>
-                                    </div>
-                                </th>
-                                <td>{{ $device->imei }}</td>
-                                <td>{{ $deviceMetrics[$device->id]['total_distance'] }}</td>
-                                <td>{{ $deviceMetrics[$device->id]['average_speed'] }}</td>
-                                <td>{{ $deviceMetrics[$device->id]['total_trips'] ?? 0 }}</td>
-                                <td>{{ $deviceMetrics[$device->id]['total_duration'] ?? 0 }}</td>
-                                <td class="text-end pe-4">
-                                    <span class="badge bg-success bg-opacity-10 text-white">Active</span>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" class="ps-4">Device Name</th>
+                                    <th scope="col">IMEI</th>
+                                    <th scope="col">Total Distance (km)</th>
+                                    <th scope="col">Average Speed (km/h)</th>
+                                    <th scope="col">Total Trips</th>
+                                    <th scope="col">Total Duration (Hr)</th>
+                                    <th scope="col" class="text-end pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($activatedDevices as $device)
+                                <tr>
+                                    <th scope="row" class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-tablet-alt text-primary me-2"></i>
+                                            <span>{{ $device->device_name }}</span>
+                                        </div>
+                                    </th>
+                                    <td>{{ $device->imei }}</td>
+                                    <td>{{ $activeDeviceMetrics[$device->id]['total_distance'] }}</td>
+                                    <td>{{ $activeDeviceMetrics[$device->id]['average_speed'] }}</td>
+                                    <td>{{ $activeDeviceMetrics[$device->id]['total_trips'] ?? 0 }}</td>
+                                    <td>{{ $activeDeviceMetrics[$device->id]['total_duration'] ?? 0 }}</td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge bg-success bg-opacity-10 text-white">Active</span>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                {!! $activatedDevices->appends(request()->except('page'))->links('custom-pagination') !!}
             </div>
-            {{-- {!! $activatedDevices->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div>
     </div>
-</div>
+    <div class="row my-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: #43dcaf;">
+                    <h5 class="mb-0"><i class="fas fa-tablet-alt me-2"></i>Inactivated Devices</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="devicesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            Options
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="devicesDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-download me-2"></i>Export Data</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-filter me-2"></i>Filter Devices</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" class="ps-4">Device Name</th>
+                                    <th scope="col">Total Distance (km)</th>
+                                    <th scope="col">Average Speed (km/h)</th>
+                                    <th scope="col">Total Trips</th>
+                                    <th scope="col">Total Duration (Hr)</th>
+                                    <th scope="col" class="text-end pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($inActivatedDevices as $device)
+                                <tr>
+                                    <th scope="row" class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-tablet-alt text-primary me-2"></i>
+                                            <span>{{ $device->device_name }}</span>
+                                        </div>
+                                    </th>
+                                    <td>{{ $device->imei }}</td>
+                                    <td>{{ $inActiveDeviceMetrics[$device->id]['total_distance'] }}</td>
+                                    <td>{{ $inActiveDeviceMetrics[$device->id]['average_speed'] }}</td>
+                                    <td>{{ $inActiveDeviceMetrics[$device->id]['total_trips'] ?? 0 }}</td>
+                                    <td>{{ $inActiveDeviceMetrics[$device->id]['total_duration'] ?? 0 }}</td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge bg-success bg-opacity-10 text-white">Inactive</span>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {!! $inActivatedDevices->appends(request()->except('page'))->links('custom-pagination') !!}
+            </div>
+        </div>
+    </div>
     </section>
     @push('js')
         <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.10.2/umd/popper.min.js"></script>
