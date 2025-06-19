@@ -363,7 +363,7 @@ class ReportController extends Controller
 
         foreach ($devices as $device) {
             if ($device->imei) {
-                try {
+                // try {
                     $response = $jimiService->getDeviceMileage(
                         [$device->imei],
                         $startTime,
@@ -380,10 +380,10 @@ class ReportController extends Controller
                             'total_duration' => round($mileageData['duration'] / 3600, 2),
                         ];
                     }
-                } catch (\Exception $e) {
-                    \Log::error("Failed to get metrics for device {$device->id}: " . $e->getMessage());
-                    $metrics[$device->id] = $this->getDefaultMetrics();
-                }
+                // } catch (\Exception $e) {
+                //     \Log::error("Failed to get metrics for device {$device->id}: " . $e->getMessage());
+                //     $metrics[$device->id] = $this->getDefaultMetrics();
+                // }
             } else {
                 $metrics[$device->id] = $this->getDefaultMetrics();
             }
