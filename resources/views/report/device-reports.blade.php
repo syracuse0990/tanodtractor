@@ -57,7 +57,7 @@
                 </div>
             </div>
         </div>
-        <div class="row my-4">
+        {{-- <div class="row my-4">
     <div class="col-md-12">
         <div class="card shadow-sm border-0">
             <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: #5a88fc;">
@@ -125,7 +125,7 @@
             {!! $activatedDevicesWithData->appends(request()->except('page'))->links('custom-pagination') !!}
         </div>
     </div>
-</div>
+</div> --}}
            <div class="row my-4">
         <div class="col-md-12">
             <div class="card shadow-sm border-0">

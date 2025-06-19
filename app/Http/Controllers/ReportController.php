@@ -18,6 +18,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use App\Services\TrackSolidProService;
+use App\Services\JimiService;
 
 
 class ReportController extends Controller
@@ -311,132 +312,133 @@ class ReportController extends Controller
         }
     }
 
-    // public function deviceReports()
-    // {
-    //     $oneMonthFromNow = Carbon::now()->addMonth();
-
-    //     $totalDevices = Device::count();
-    //     $activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
-    //     $inactiveDevices = Device::whereNull('activation_time')->count();
-    //     $expiredDevices = Device::where('expiration_date', '<', now())->count();
-    //     $expiringSoonDevices = Device::whereBetween('expiration_date', [now(), $oneMonthFromNow])->count();
-
-    //     $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
-    //     $inActivatedDevices = Device::whereNull('activation_time')->paginate(10);
-
-    //     $accessToken = $this->getAccessToken();
-    //     $user = User::where('role_id', User::ROLE_ADMIN)->first();
-
-    //     $now = Carbon::now();
-    //     $oneMonthFromNow = $now->copy()->addMonth();
-    //     $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
-    //     $endTime = $now->format('Y-m-d H:i:s');
-
-    //     $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
-
-    //     foreach ($activatedDevices as $device) {
-    //         $tripData = $this->fetchMileageData($device->imei, $startTime, $endTime, $accessToken);
-    //         $device->total_distance_km = $tripData['totalMileage'] / 1000;
-    //         $device->average_speed_kmh = $tripData['avgSpeed'];
-    //         $device->total_trips = count($tripData['results']);
-    //         $device->total_duration_hr = array_sum(array_column($tripData['results'], 'runTimeSecond')) / 3600;
-    //     }
-
-
-    //     return view('report.device-reports', compact('totalDevices', 'activeDevices', 'inactiveDevices', 'expiredDevices', 'expiringSoonDevices', 'activatedDevices', 'inActivatedDevices'));
-    // }
-
-    public function deviceReports(TrackSolidProService $trackSolidPro)
-{
-    try {
+    public function deviceReports( JimiService $jimiService)
+    {
+        dd($jimiService->getDeviceList());
         $oneMonthFromNow = Carbon::now()->addMonth();
 
-        $stats = $trackSolidPro->getDeviceStats();
-        $totalDevices = $stats['totalDevices'];
-        $activeDevices = $stats['activeDevices'];
-        $inactiveDevices = $stats['inactiveDevices'];
-        $expiredDevices = $stats['expiredDevices'];
-        $expiringSoonDevices = $stats['expiringSoonDevices'];
+        $totalDevices = Device::count();
+        $activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
+        $inactiveDevices = Device::whereNull('activation_time')->count();
+        $expiredDevices = Device::where('expiration_date', '<', now())->count();
+        $expiringSoonDevices = Device::whereBetween('expiration_date', [now(), $oneMonthFromNow])->count();
+
+        $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
+        $inActivatedDevices = Device::whereNull('activation_time')->paginate(10);
 
 
-        $allDevices = $trackSolidPro->getDevices();
+
+        $now = Carbon::now();
+        $oneMonthFromNow = $now->copy()->addMonth();
+        $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
+        $endTime = $now->format('Y-m-d H:i:s');
+
+        $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
 
 
-        $activatedDevices = collect($allDevices)->filter(function ($device) {
-            return !empty($device['activationTime']) &&
-                   (!isset($device['expiration'])) ||
-                   (isset($device['expiration']) && strtotime($device['expiration']) > time());
-        });
-
-        $inActivatedDevices = collect($allDevices)->filter(function ($device) {
-            return empty($device['activationTime']);
-        });
+        // foreach ($activatedDevices as $device) {
+        //     $tripData = $this->fetchMileageData($device->imei, $startTime, $endTime, $accessToken);
+        //     $device->total_distance_km = $tripData['totalMileage'] / 1000;
+        //     $device->average_speed_kmh = $tripData['avgSpeed'];
+        //     $device->total_trips = count($tripData['results']);
+        //     $device->total_duration_hr = array_sum(array_column($tripData['results'], 'runTimeSecond')) / 3600;
+        // }
 
 
-        $perPage = 10;
-        $page = request()->get('page', 1);
-
-        $activatedPaginator = new LengthAwarePaginator(
-            $activatedDevices->forPage($page, $perPage),
-            $activatedDevices->count(),
-            $perPage,
-            $page,
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
-
-        $inActivatedPaginator = new LengthAwarePaginator(
-            $inActivatedDevices->forPage($page, $perPage),
-            $inActivatedDevices->count(),
-            $perPage,
-            $page,
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
-
-        $activatedDeviceLocations = $trackSolidPro->getDeviceLocations(
-            $activatedPaginator->pluck('imei')->toArray()
-        );
-
-
-        $startDate = Carbon::now()->subDays(30)->format('Y-m-d H:i:s');
-        $endDate = Carbon::now()->format('Y-m-d H:i:s');
-
-        $mileageData = $trackSolidPro->getDeviceMileage(
-            $activatedPaginator->pluck('imei')->toArray(),
-            $startDate,
-            $endDate
-        );
-
-
-        $tripData = $trackSolidPro->getDeviceTrips(
-            $activatedPaginator->pluck('imei')->toArray(),
-            $startDate,
-            $endDate
-        );
-
-
-        $activatedDevicesWithData = $activatedPaginator->map(function ($device) use ($activatedDeviceLocations, $mileageData, $tripData) {
-            $location = collect($activatedDeviceLocations)->firstWhere('imei', $device['imei']);
-            $deviceMileage = collect($mileageData)->firstWhere('imei', $device['imei']);
-            $deviceTrips = collect($tripData['dayList'] ?? [])->firstWhere('imei', $device['imei']);
-
-            return [
-                'device' => $device,
-                'location' => $location,
-                'mileage' => $deviceMileage,
-                'trips' => $deviceTrips
-            ];
-        });
-
-        return view('report.device-reports', compact(
-            'totalDevices', 'activeDevices', 'inactiveDevices',
-            'expiredDevices', 'expiringSoonDevices',
-            'activatedDevicesWithData', 'inActivatedPaginator'
-        ));
-
-    } catch (\Exception $e) {
-        return back()->with('error', 'Failed to fetch device reports: ' . $e->getMessage());
+        return view('report.device-reports', compact('totalDevices', 'activeDevices', 'inactiveDevices', 'expiredDevices', 'expiringSoonDevices', 'activatedDevices', 'inActivatedDevices'));
     }
-}
+
+//     public function deviceReports(TrackSolidProService $trackSolidPro, JimiService $jimiService)
+// {
+//     try {
+//         $oneMonthFromNow = Carbon::now()->addMonth();
+
+//         $stats = $trackSolidPro->getDeviceStats();
+//         $totalDevices = $stats['totalDevices'];
+//         $activeDevices = $stats['activeDevices'];
+//         $inactiveDevices = $stats['inactiveDevices'];
+//         $expiredDevices = $stats['expiredDevices'];
+//         $expiringSoonDevices = $stats['expiringSoonDevices'];
+
+
+//         $allDevices = $trackSolidPro->getDevices();
+
+
+//         $activatedDevices = collect($allDevices)->filter(function ($device) {
+//             return !empty($device['activationTime']) &&
+//                    (!isset($device['expiration'])) ||
+//                    (isset($device['expiration']) && strtotime($device['expiration']) > time());
+//         });
+
+//         $inActivatedDevices = collect($allDevices)->filter(function ($device) {
+//             return empty($device['activationTime']);
+//         });
+
+
+//         $perPage = 10;
+//         $page = request()->get('page', 1);
+
+//         $activatedPaginator = new LengthAwarePaginator(
+//             $activatedDevices->forPage($page, $perPage),
+//             $activatedDevices->count(),
+//             $perPage,
+//             $page,
+//             ['path' => request()->url(), 'query' => request()->query()]
+//         );
+
+//         $inActivatedPaginator = new LengthAwarePaginator(
+//             $inActivatedDevices->forPage($page, $perPage),
+//             $inActivatedDevices->count(),
+//             $perPage,
+//             $page,
+//             ['path' => request()->url(), 'query' => request()->query()]
+//         );
+
+//         $activatedDeviceLocations = $trackSolidPro->getDeviceLocations(
+//             $activatedPaginator->pluck('imei')->toArray()
+//         );
+
+
+//         $startDate = Carbon::now()->subDays(30)->format('Y-m-d H:i:s');
+//         $endDate = Carbon::now()->format('Y-m-d H:i:s');
+
+//         $mileageData = $trackSolidPro->getDeviceMileage(
+//             $activatedPaginator->pluck('imei')->toArray(),
+//             $startDate,
+//             $endDate
+//         );
+
+
+//         $tripData = $trackSolidPro->getDeviceTrips(
+//             $activatedPaginator->pluck('imei')->toArray(),
+//             $startDate,
+//             $endDate
+//         );
+
+
+//         $activatedDevicesWithData = $activatedPaginator->map(function ($device) use ($activatedDeviceLocations, $mileageData, $tripData) {
+//             $location = collect($activatedDeviceLocations)->firstWhere('imei', $device['imei']);
+//             $deviceMileage = collect($mileageData)->firstWhere('imei', $device['imei']);
+//             $deviceTrips = collect($tripData['dayList'] ?? [])->firstWhere('imei', $device['imei']);
+
+//             return [
+//                 'device' => $device,
+//                 'location' => $location,
+//                 'mileage' => $deviceMileage,
+//                 'trips' => $deviceTrips
+//             ];
+//         });
+
+//         return view('report.device-reports', compact(
+//             'totalDevices', 'activeDevices', 'inactiveDevices',
+//             'expiredDevices', 'expiringSoonDevices',
+//             'activatedDevicesWithData', 'inActivatedPaginator'
+//         ));
+
+//     } catch (\Exception $e) {
+//         return back()->with('error', 'Failed to fetch device reports: ' . $e->getMessage());
+//     }
+// }
 
 
 }
