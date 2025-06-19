@@ -311,42 +311,122 @@ class ReportController extends Controller
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
-
-    public function deviceReports( JimiService $jimiService)
+      public function deviceReports(JimiService $jimiService)
     {
-        dd($jimiService->getDeviceList());
-        $oneMonthFromNow = Carbon::now()->addMonth();
-
-        $totalDevices = Device::count();
-        $activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
-        $inactiveDevices = Device::whereNull('activation_time')->count();
-        $expiredDevices = Device::where('expiration_date', '<', now())->count();
-        $expiringSoonDevices = Device::whereBetween('expiration_date', [now(), $oneMonthFromNow])->count();
-
-        $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
-        $inActivatedDevices = Device::whereNull('activation_time')->paginate(10);
-
-
-
+        // Date calculations
         $now = Carbon::now();
         $oneMonthFromNow = $now->copy()->addMonth();
         $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
         $endTime = $now->format('Y-m-d H:i:s');
 
-        $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
+        // Device counts from database
+        $deviceCounts = [
+            'total' => Device::count(),
+            'active' => Device::whereNotNull('activation_time')
+                ->where('expiration_date', '>', $now)
+                ->count(),
+            'inactive' => Device::whereNull('activation_time')->count(),
+            'expired' => Device::where('expiration_date', '<', $now)->count(),
+            'expiringSoon' => Device::whereBetween('expiration_date', [$now, $oneMonthFromNow])->count(),
+        ];
 
+        // Get paginated devices
+        $activatedDevices = Device::whereNotNull('activation_time')
+            ->where('expiration_date', '>', $now)
+            ->paginate(10);
 
-        // foreach ($activatedDevices as $device) {
-        //     $tripData = $this->fetchMileageData($device->imei, $startTime, $endTime, $accessToken);
-        //     $device->total_distance_km = $tripData['totalMileage'] / 1000;
-        //     $device->average_speed_kmh = $tripData['avgSpeed'];
-        //     $device->total_trips = count($tripData['results']);
-        //     $device->total_duration_hr = array_sum(array_column($tripData['results'], 'runTimeSecond')) / 3600;
-        // }
+        $inActivatedDevices = Device::whereNull('activation_time')
+            ->paginate(10);
 
+        // Get device metrics from Jimi API for activated devices
+        $deviceMetrics = $this->getDeviceMetrics($jimiService, $activatedDevices, $startTime, $endTime);
 
-        return view('report.device-reports', compact('totalDevices', 'activeDevices', 'inactiveDevices', 'expiredDevices', 'expiringSoonDevices', 'activatedDevices', 'inActivatedDevices'));
+        return view('report.device-reports', compact(
+            'deviceCounts',
+            'activatedDevices',
+            'inActivatedDevices',
+            'deviceMetrics'
+        ));
     }
+
+    /**
+     * Get device metrics from Jimi API
+     */
+    private function getDeviceMetrics(JimiService $jimiService, $devices, $startTime, $endTime): array
+    {
+        $metrics = [];
+
+        foreach ($devices as $device) {
+            if ($device->imei) {
+                try {
+                    // Get mileage data for each device
+                    $response = $jimiService->getDeviceMileage(
+                        [$device->imei],
+                        $startTime,
+                        $endTime
+                    );
+
+                    // Extract relevant metrics from response
+                    if (isset($response['result']['mileageList'][0])) {
+                        $mileageData = $response['result']['mileageList'][0];
+                        $metrics[$device->id] = [
+                            'total_distance' => round($mileageData['mileage'] / 1000, 2), // Convert to km
+                            'average_speed' => round($mileageData['avgSpeed'], 2),
+                            'total_trips' => $mileageData['tripCount'],
+                            'total_duration' => round($mileageData['duration'] / 3600, 2), // Convert to hours
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    // Log error and set default values
+                    \Log::error("Failed to get metrics for device {$device->id}: " . $e->getMessage());
+                    $metrics[$device->id] = $this->getDefaultMetrics();
+                }
+            } else {
+                $metrics[$device->id] = $this->getDefaultMetrics();
+            }
+        }
+
+        return $metrics;
+    }
+
+    /**
+     * Default metrics when data is not available
+     */
+    private function getDefaultMetrics(): array
+    {
+        return [
+            'total_distance' => 0,
+            'average_speed' => 0,
+            'total_trips' => 0,
+            'total_duration' => 0,
+        ];
+    }
+
+    // public function deviceReports( JimiService $jimiService)
+    // {
+
+    //     $oneMonthFromNow = Carbon::now()->addMonth();
+
+    //     $totalDevices = Device::count();
+    //     $activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
+    //     $inactiveDevices = Device::whereNull('activation_time')->count();
+    //     $expiredDevices = Device::where('expiration_date', '<', now())->count();
+    //     $expiringSoonDevices = Device::whereBetween('expiration_date', [now(), $oneMonthFromNow])->count();
+
+    //     $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
+    //     $inActivatedDevices = Device::whereNull('activation_time')->paginate(10);
+
+
+
+    //     $now = Carbon::now();
+    //     $oneMonthFromNow = $now->copy()->addMonth();
+    //     $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
+    //     $endTime = $now->format('Y-m-d H:i:s');
+
+    //     $activatedDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->paginate(10);
+
+    //     return view('report.device-reports', compact('totalDevices', 'activeDevices', 'inactiveDevices', 'expiredDevices', 'expiringSoonDevices', 'activatedDevices', 'inActivatedDevices'));
+    // }
 
 //     public function deviceReports(TrackSolidProService $trackSolidPro, JimiService $jimiService)
 // {
