@@ -340,7 +340,7 @@ class ReportController extends Controller
             ->paginate(10);
 
         $deviceMetrics = $this->getDeviceMetrics($jimiService, $activatedDevices, $startTime, $endTime);
-
+        dump( $deviceMetrics );
         return view('report.device-reports', compact(
             'activatedDevices',
             'inActivatedDevices',
