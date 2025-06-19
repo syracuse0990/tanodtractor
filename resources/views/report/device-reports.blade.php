@@ -152,8 +152,8 @@
                                     </div>
                                 </th>
                                 <td>{{ $device->imei }}</td>
-                                <td>{{ $deviceMetrics[$device->id]['total_distance'] ?? 0 }}</td>
-                                <td>{{ $deviceMetrics[$device->id]['average_speed'] ?? 0 }}</td>
+                                <td>{{ $deviceMetrics[$device->id]['total_distance'] }}</td>
+                                <td>{{ $deviceMetrics[$device->id]['average_speed'] }}</td>
                                 <td>{{ $deviceMetrics[$device->id]['total_trips'] ?? 0 }}</td>
                                 <td>{{ $deviceMetrics[$device->id]['total_duration'] ?? 0 }}</td>
                                 <td class="text-end pe-4">
