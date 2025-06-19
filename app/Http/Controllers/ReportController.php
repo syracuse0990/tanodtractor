@@ -330,7 +330,11 @@ class ReportController extends Controller
 
         $activatedDevices = Device::whereNotNull('activation_time')
             ->where('expiration_date', '>', $now)
-            ->paginate(10);
+            ->get();
+
+        foreach($activatedDevices as $device){
+            dump($jimiService->getDeviceDetail($device->imei_no));
+        }
 
         $inActivatedDevices = Device::whereNull('activation_time')
             ->paginate(10);
