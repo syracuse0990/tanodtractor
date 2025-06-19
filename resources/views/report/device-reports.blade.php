@@ -98,7 +98,7 @@
                                             <span>{{ $device->device_name }}</span>
                                         </div>
                                     </th>
-                                    <td>{{ $device->imei }}</td>
+                                    <td>{{ $device->imei_no }}</td>
                                     <td>{{ $activeDeviceMetrics[$device->id]['total_distance'] }}</td>
                                     <td>{{ $activeDeviceMetrics[$device->id]['average_speed'] }}</td>
                                     <td>{{ $activeDeviceMetrics[$device->id]['total_trips'] ?? 0 }}</td>
@@ -137,6 +137,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th scope="col" class="ps-4">Device Name</th>
+                                    <th scope="col">IMEI</th>
                                     <th scope="col">Total Distance (km)</th>
                                     <th scope="col">Average Speed (km/h)</th>
                                     <th scope="col">Total Trips</th>
@@ -153,7 +154,7 @@
                                             <span>{{ $device->device_name }}</span>
                                         </div>
                                     </th>
-                                    <td>{{ $device->imei }}</td>
+                                    <td>{{ $device->imei_no }}</td>
                                     <td>{{ $inActiveDeviceMetrics[$device->id]['total_distance'] }}</td>
                                     <td>{{ $inActiveDeviceMetrics[$device->id]['average_speed'] }}</td>
                                     <td>{{ $inActiveDeviceMetrics[$device->id]['total_trips'] ?? 0 }}</td>

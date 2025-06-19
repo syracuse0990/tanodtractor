@@ -318,7 +318,7 @@ class ReportController extends Controller
 
         $totalDevices = Device::count();
         $activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
-        $inactiveDevices = Device::whereNull('activation_time')->count();
+        $inactiveDevices = Device::whereNull('activation_time')->orWhere('activation_time', 'Inactive')->count();
         $expiredDevices = Device::where('expiration_date', '<', now())->count();
         $expiringSoonDevices = Device::whereBetween('expiration_date', [now(), $oneMonthFromNow])->count();
 
