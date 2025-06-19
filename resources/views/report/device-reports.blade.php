@@ -63,7 +63,7 @@
     <div class="row my-4">
         <div class="col-md-12">
             <div class="card shadow-sm border-0">
-                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: #43dcaf;">
+                <div class="card-header text-white d-flex justify-content-between align-items-center" style="background: #5a88fc;">
                     <h5 class="mb-0"><i class="fas fa-tablet-alt me-2"></i>Activated Devices</h5>
                     <div class="dropdown">
                         <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="activatedDevicesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -112,7 +112,7 @@
                         </table>
                     </div>
                 </div>
-                {!! $activatedDevices->appends(request()->except('page'))->links('custom-pagination') !!}
+                {!! $activatedDevices->appends(request()->except('active_page'))->links('custom-pagination') !!}
             </div>
         </div>
     </div>
@@ -167,7 +167,7 @@
                         </table>
                     </div>
                 </div>
-                {!! $inActivatedDevices->appends(request()->except('page'))->links('custom-pagination') !!}
+                {!! $inActivatedDevices->appends(request()->except('inactive_page'))->links('custom-pagination') !!}
             </div>
         </div>
     </div>
