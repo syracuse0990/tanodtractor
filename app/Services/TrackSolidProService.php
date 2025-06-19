@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class TrackSolidProService
@@ -12,85 +12,110 @@ class TrackSolidProService
     protected $baseUrl;
     protected $appKey;
     protected $appSecret;
-    protected $account;
-    protected $password;
-    protected $token;
+    protected $target;
 
     public function __construct()
     {
         $this->client = new Client();
-        $this->baseUrl = config('tracksolidpro.api_url');
-        $this->appKey = config('tracksolidpro.app_key');
-        $this->appSecret = config('tracksolidpro.app_secret');
-        $this->account = config('tracksolidpro.account');
-        $this->password = md5(config('tracksolidpro.password'));
-
-        $this->authenticate();
+        $this->baseUrl = 'https://hk-open.tracksolidpro.com/route/rest';
+        $this->appKey = '8FB345B8693CCD0033FB45E2E5335788339A22A4105B6558';
+        $this->appSecret = 'ca41d3577eb2494f9030ace810cf7772';
+        $this->target = 'Admin_LAPC';
     }
 
-    protected function authenticate()
+    protected function getToken($forceRefresh = false)
     {
-        $this->token = Cache::remember('tracksolidpro_token', now()->addHours(1), function () {
-            $params = [
-                'method' => 'jimi.oauth.token.get',
-                'timestamp' => now()->format('Y-m-d H:i:s'),
-                'app_key' => $this->appKey,
-                'user_id' => $this->account,
-                'user_pwd_md5' => $this->password,
-                'expires_in' => 7200,
-                'format' => 'json',
-                'v' => '1.0',
-                'sign_method' => 'md5'
-            ];
+        $date = date('Y-m-d H:i:s');
+        $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
 
-            $params['sign'] = $this->generateSignature($params);
+        $data = [
+            'app_key' => $this->appKey,
+            'format' => 'json',
+            'method' => 'jimi.oauth.token.get',
+            'sign_method' => 'md5',
+            'target' => $this->target,
+            'timestamp' => $gmt_date,
+            'user_id' => $this->target,
+            'user_pwd_md5' => md5('Admin@123'),
+            'v' => '1.0',
+        ];
 
-            try {
-                $response = $this->client->post($this->baseUrl, [
-                    'form_params' => $params
-                ]);
+        $sign = $this->generateSignature($data);
+        $data['sign'] = $sign;
 
-                $data = json_decode($response->getBody(), true);
-                return $data['result']['accessToken'] ?? null;
-            } catch (\Exception $e) {
-                Log::error('TrackSolidPro Auth Error: ' . $e->getMessage());
-                return null;
+        try {
+            $response = $this->client->post($this->baseUrl, [
+                'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
+                'form_params' => $data
+            ]);
+
+            $response_data = $response->getBody()->getContents();
+            $response = json_decode($response_data, true);
+
+            if (isset($response['result']['accessToken'])) {
+                $user = User::where('role_id', User::ROLE_ADMIN)->first();
+                $user->api_access_token = $response['result']['accessToken'];
+                $user->api_token_time = $gmt_date;
+                $user->save();
+                return $response['result']['accessToken'];
             }
-        });
+
+            throw new \Exception('Failed to get access token');
+        } catch (\Exception $e) {
+            Log::error('TrackSolidPro Auth Error: ' . $e->getMessage());
+            throw $e;
+        }
     }
 
     protected function generateSignature($params)
     {
-        unset($params['sign']);
-
         ksort($params);
-
-
         $stringToSign = $this->appSecret;
+
         foreach ($params as $key => $value) {
             if ($value !== null) {
                 $stringToSign .= $key . $value;
             }
         }
-        $stringToSign .= $this->appSecret;
 
+        $stringToSign .= $this->appSecret;
         return strtoupper(md5($stringToSign));
     }
 
-    protected function makeApiRequest($method, $params = [])
+    protected function checkAndRefreshToken()
     {
-        if (!$this->token) {
-            throw new \Exception('TrackSolidPro authentication failed.');
+        $user = User::where('role_id', User::ROLE_ADMIN)->first();
+
+        if (!$user || !$user->api_access_token) {
+            return $this->getToken();
         }
 
+        $date = date('Y-m-d H:i:s');
+        $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
+        $diff = round((strtotime($gmt_date) - strtotime($user->api_token_time)) / 3600, 1);
+
+        if ($diff >= 2) {
+            return $this->getToken();
+        }
+
+        return $user->api_access_token;
+    }
+
+    public function makeApiRequest($method, $params = [])
+    {
+        $access_token = $this->checkAndRefreshToken();
+        $date = date('Y-m-d H:i:s');
+        $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
+
         $commonParams = [
-            'method' => $method,
-            'timestamp' => now()->format('Y-m-d H:i:s'),
+            'access_token' => $access_token,
             'app_key' => $this->appKey,
-            'access_token' => $this->token,
             'format' => 'json',
+            'method' => $method,
+            'sign_method' => 'md5',
+            'target' => $this->target,
+            'timestamp' => $gmt_date,
             'v' => '1.0',
-            'sign_method' => 'md5'
         ];
 
         $requestParams = array_merge($commonParams, $params);
@@ -98,27 +123,39 @@ class TrackSolidProService
 
         try {
             $response = $this->client->post($this->baseUrl, [
+                'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
                 'form_params' => $requestParams
             ]);
 
-            $data = json_decode($response->getBody(), true);
+            $response_data = $response->getBody()->getContents();
+            $data = json_decode($response_data, true);
 
-            if ($data['code'] != 0) {
+            if (isset($data['code']) && $data['code'] == 401) {
+                // Token might be expired, try refreshing
+                $this->getToken(true);
+                return $this->makeApiRequest($method, $params);
+            }
+
+            if (isset($data['code']) && $data['code'] != 0) {
                 throw new \Exception($data['message'] ?? 'API request failed');
             }
 
-            return $data['result'] ?? $data['data'] ?? [];
+            return $data['result'] ?? $data['data'] ?? $data;
         } catch (\Exception $e) {
             Log::error('TrackSolidPro API Error: ' . $e->getMessage());
+
+            if ($e->getCode() == 401) {
+                $this->getToken(true);
+                return $this->makeApiRequest($method, $params);
+            }
+
             throw $e;
         }
     }
 
-    public function getDevices($account = null)
+    public function getDevices()
     {
-        return $this->makeApiRequest('jimi.user.device.list', [
-            'target' => $account ?? $this->account
-        ]);
+        return $this->makeApiRequest('jimi.user.device.list');
     }
 
     public function getDeviceDetails($imei)
@@ -139,9 +176,9 @@ class TrackSolidProService
         ]);
     }
 
-    public function getDeviceStats($account = null)
+    public function getDeviceStats()
     {
-        $devices = $this->getDevices($account);
+        $devices = $this->getDevices();
         $stats = [
             'totalDevices' => count($devices),
             'activeDevices' => 0,
@@ -150,20 +187,20 @@ class TrackSolidProService
             'expiringSoonDevices' => 0
         ];
 
-        $now = now();
-        $oneMonthFromNow = $now->copy()->addMonth();
+        $now = time();
+        $oneMonthFromNow = strtotime('+1 month');
 
         foreach ($devices as $device) {
             $expiration = $device['expiration'] ?? null;
 
             if (empty($device['activationTime'])) {
                 $stats['inactiveDevices']++;
-            } elseif ($expiration && strtotime($expiration) < $now->timestamp) {
+            } elseif ($expiration && strtotime($expiration) < $now) {
                 $stats['expiredDevices']++;
-            } elseif ($expiration && strtotime($expiration) > $now->timestamp) {
+            } elseif ($expiration && strtotime($expiration) > $now) {
                 $stats['activeDevices']++;
 
-                if (strtotime($expiration) < $oneMonthFromNow->timestamp) {
+                if (strtotime($expiration) < $oneMonthFromNow) {
                     $stats['expiringSoonDevices']++;
                 }
             }
@@ -192,7 +229,6 @@ class TrackSolidProService
         }
 
         return $this->makeApiRequest('jimi.open.platform.report.trips', [
-            'account' => $this->account,
             'imeis' => $imeis,
             'start_time' => $startTime,
             'end_time' => $endTime,
