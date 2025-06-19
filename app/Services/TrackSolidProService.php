@@ -29,6 +29,7 @@ class TrackSolidProService
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
 
         $data = [
+            'access_token' => '77bccfc5ce11df621c014d251b0d47bc',
             'app_key' => $this->appKey,
             'format' => 'json',
             'method' => 'jimi.oauth.token.get',
@@ -37,6 +38,7 @@ class TrackSolidProService
             'timestamp' => $gmt_date,
             'user_id' => $this->target,
             'user_pwd_md5' => md5('Admin@123'),
+
             'v' => '1.0',
         ];
 

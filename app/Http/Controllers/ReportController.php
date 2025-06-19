@@ -351,7 +351,6 @@ class ReportController extends Controller
     try {
         $oneMonthFromNow = Carbon::now()->addMonth();
 
-        // Get device statistics
         $stats = $trackSolidPro->getDeviceStats();
         $totalDevices = $stats['totalDevices'];
         $activeDevices = $stats['activeDevices'];
@@ -359,10 +358,10 @@ class ReportController extends Controller
         $expiredDevices = $stats['expiredDevices'];
         $expiringSoonDevices = $stats['expiringSoonDevices'];
 
-        // Get all devices
+
         $allDevices = $trackSolidPro->getDevices();
 
-        // Filter and paginate devices
+
         $activatedDevices = collect($allDevices)->filter(function ($device) {
             return !empty($device['activationTime']) &&
                    (!isset($device['expiration'])) ||
@@ -373,7 +372,7 @@ class ReportController extends Controller
             return empty($device['activationTime']);
         });
 
-        // Paginate the collections
+
         $perPage = 10;
         $page = request()->get('page', 1);
 
@@ -393,12 +392,11 @@ class ReportController extends Controller
             ['path' => request()->url(), 'query' => request()->query()]
         );
 
-        // Get location data for activated devices
         $activatedDeviceLocations = $trackSolidPro->getDeviceLocations(
             $activatedPaginator->pluck('imei')->toArray()
         );
 
-        // Get mileage data for last 30 days
+
         $startDate = Carbon::now()->subDays(30)->format('Y-m-d H:i:s');
         $endDate = Carbon::now()->format('Y-m-d H:i:s');
 
@@ -408,14 +406,14 @@ class ReportController extends Controller
             $endDate
         );
 
-        // Get trip data for last 30 days
+
         $tripData = $trackSolidPro->getDeviceTrips(
             $activatedPaginator->pluck('imei')->toArray(),
             $startDate,
             $endDate
         );
 
-        // Combine device data with location and mileage data
+
         $activatedDevicesWithData = $activatedPaginator->map(function ($device) use ($activatedDeviceLocations, $mileageData, $tripData) {
             $location = collect($activatedDeviceLocations)->firstWhere('imei', $device['imei']);
             $deviceMileage = collect($mileageData)->firstWhere('imei', $device['imei']);
