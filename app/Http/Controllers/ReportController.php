@@ -331,7 +331,7 @@ class ReportController extends Controller
             ->paginate(10, ['*'], 'active_page');
 
         // Use 'inactive_page' for inactivated devices
-        $inActivatedDevices = Device::whereNull('activation_time')
+        $inActivatedDevices = Device::whereNull('activation_time')->orWhere('activation_time', 'Inactive')
             ->paginate(10, ['*'], 'inactive_page');
 
         $activeDeviceMetrics = $this->getDeviceMetrics($jimiService, $activatedDevices, $startTime, $endTime);
