@@ -157,6 +157,7 @@ class AuthController extends Controller
         $userObj->fcm_token = $inputArr['fcm_token'];
         $userObj->tokens()->delete();
         $authToken = $userObj->createToken('authToken')->plainTextToken;
+
         $userObj->remember_token = $authToken;
         $userObj->save();
 
@@ -175,7 +176,7 @@ class AuthController extends Controller
     /* @var $request object of request class
     * @var $user object of user class
     * @return object with user
-    * This function use to user logout 
+    * This function use to user logout
     */
     public function logout(Request $request)
     {
@@ -190,10 +191,10 @@ class AuthController extends Controller
         return returnSuccessResponse('User logged out successfully');
     }
 
-    /** 
-     * details api 
-     * 
-     * @return \Illuminate\Http\Response 
+    /**
+     * details api
+     *
+     * @return \Illuminate\Http\Response
      */
     public function details()
     {
@@ -205,10 +206,10 @@ class AuthController extends Controller
         }
     }
 
-    /** 
-     * change password api 
-     * 
-     * @return \Illuminate\Http\Response 
+    /**
+     * change password api
+     *
+     * @return \Illuminate\Http\Response
      */
     public function updatePassword(Request $request)
     {
@@ -230,10 +231,10 @@ class AuthController extends Controller
         }
     }
 
-    /** 
-     * forgot password api 
-     * 
-     * @return \Illuminate\Http\Response 
+    /**
+     * forgot password api
+     *
+     * @return \Illuminate\Http\Response
      */
     public function forgotPassword(Request $request)
     {
@@ -278,7 +279,7 @@ class AuthController extends Controller
         return returnSuccessResponse('Profile updated successfully', $returnArr);
     }
 
-    /** 
+    /**
      * Verify mobile number.
      *
      * @param  \Illuminate\Http\Request $request

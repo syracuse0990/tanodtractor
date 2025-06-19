@@ -388,7 +388,7 @@ class LiveviewController extends Controller
                 $playbackControl = '<div class="overlay-map-section position-absolute bg-white p-3 w-100" id="playbackControlId"><p class="text-end" >Speed: <span id="gpsSpeedId">' . $gpsSpeed[0] . '</span> km/h</p>
                                         <div class="d-flex align-items-center">
                                             <div class="play-pause-btn me-2">
-                                            <button id="playButton" data-imei="' . $imei . '" data-action="play" onClick="playPauseDevice(this)"><i class="fa-solid fa-play"></i></button> 
+                                            <button id="playButton" data-imei="' . $imei . '" data-action="play" onClick="playPauseDevice(this)"><i class="fa-solid fa-play"></i></button>
                                             <button id="pauseButton" class="d-none" data-imei="' . $imei . '" data-action="pause" onClick="playPauseDevice(this)"><i class="fa-solid fa-pause"></i></button>
                                             </div>
                                             <div id="progress-bar-container">
