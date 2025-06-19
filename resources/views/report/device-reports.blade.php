@@ -107,7 +107,7 @@
                     </table>
                 </div>
             </div>
-            {!! $inActivatedDevices->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $inActivatedDevices->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div>
     </div>
 </div>
@@ -165,7 +165,7 @@
                     </table>
                 </div>
             </div>
-            {!! $activatedDevices->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $activatedDevices->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div>
     </div>
 </div>
