@@ -332,14 +332,16 @@ class ReportController extends Controller
             ->where('expiration_date', '>', $now)
             ->get();
 
-        // foreach($activatedDevices as $device){
-        //     dump($jimiService->getDeviceDetail($device->imei_no));
-        // }
+        foreach($activatedDevices as $device){
+            dump( $jimiService->getDeviceMileage( [$device->imei_no], $startTime, $endTime, ) );
+            // dump($jimiService->getDeviceDetail($device->imei_no));
+        }
 
         $inActivatedDevices = Device::whereNull('activation_time')
             ->paginate(10);
 
         $deviceMetrics = $this->getDeviceMetrics($jimiService, $activatedDevices, $startTime, $endTime);
+
         return view('report.device-reports', compact(
             'activatedDevices',
             'inActivatedDevices',
@@ -361,10 +363,10 @@ class ReportController extends Controller
         $metrics = [];
 
         foreach ($devices as $device) {
-            if ($device->imei_no) {
-                // try {
+            if ($device->imei) {
+                try {
                     $response = $jimiService->getDeviceMileage(
-                        [$device->imei_no],
+                        [$device->imei],
                         $startTime,
                         $endTime
                     );
@@ -372,19 +374,19 @@ class ReportController extends Controller
 
                     if (isset($response['result']['mileageList'][0])) {
                         $mileageData = $response['result']['mileageList'][0];
-                        $metrics[$device->imei_no] = [
+                        $metrics[$device->id] = [
                             'total_distance' => round($mileageData['mileage'] / 1000, 2),
                             'average_speed' => round($mileageData['avgSpeed'], 2),
                             'total_trips' => $mileageData['tripCount'],
                             'total_duration' => round($mileageData['duration'] / 3600, 2),
                         ];
                     }
-                // } catch (\Exception $e) {
-                //     \Log::error("Failed to get metrics for device {$device->id}: " . $e->getMessage());
-                //     $metrics[$device->id] = $this->getDefaultMetrics();
-                // }
+                } catch (\Exception $e) {
+                    \Log::error("Failed to get metrics for device {$device->id}: " . $e->getMessage());
+                    $metrics[$device->id] = $this->getDefaultMetrics();
+                }
             } else {
-                $metrics[$device->imei_no] = $this->getDefaultMetrics();
+                $metrics[$device->id] = $this->getDefaultMetrics();
             }
         }
 
