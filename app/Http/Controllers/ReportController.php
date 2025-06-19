@@ -313,27 +313,29 @@ class ReportController extends Controller
     }
       public function deviceReports(JimiService $jimiService)
     {
+        $now = Carbon::now();
+        $oneMonthFromNow = $now->copy()->addMonth();
+
         $totalDevices = Device::count();
         $activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
         $inactiveDevices = Device::whereNull('activation_time')->count();
         $expiredDevices = Device::where('expiration_date', '<', now())->count();
         $expiringSoonDevices = Device::whereBetween('expiration_date', [now(), $oneMonthFromNow])->count();
 
-        $now = Carbon::now();
-        $oneMonthFromNow = $now->copy()->addMonth();
+
         $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
         $endTime = $now->format('Y-m-d H:i:s');
 
         // Device counts from database
-        $deviceCounts = [
-            'total' => Device::count(),
-            'active' => Device::whereNotNull('activation_time')
-                ->where('expiration_date', '>', $now)
-                ->count(),
-            'inactive' => Device::whereNull('activation_time')->count(),
-            'expired' => Device::where('expiration_date', '<', $now)->count(),
-            'expiringSoon' => Device::whereBetween('expiration_date', [$now, $oneMonthFromNow])->count(),
-        ];
+        // $deviceCounts = [
+        //     'total' => Device::count(),
+        //     'active' => Device::whereNotNull('activation_time')
+        //         ->where('expiration_date', '>', $now)
+        //         ->count(),
+        //     'inactive' => Device::whereNull('activation_time')->count(),
+        //     'expired' => Device::where('expiration_date', '<', $now)->count(),
+        //     'expiringSoon' => Device::whereBetween('expiration_date', [$now, $oneMonthFromNow])->count(),
+        // ];
 
         // Get paginated devices
         $activatedDevices = Device::whereNotNull('activation_time')
@@ -347,7 +349,7 @@ class ReportController extends Controller
         $deviceMetrics = $this->getDeviceMetrics($jimiService, $activatedDevices, $startTime, $endTime);
 
         return view('report.device-reports', compact(
-            'deviceCounts',
+            // 'deviceCounts',
             'activatedDevices',
             'inActivatedDevices',
             'deviceMetrics',
