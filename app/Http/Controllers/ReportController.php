@@ -313,7 +313,12 @@ class ReportController extends Controller
     }
       public function deviceReports(JimiService $jimiService)
     {
-        // Date calculations
+        $totalDevices = Device::count();
+        $activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
+        $inactiveDevices = Device::whereNull('activation_time')->count();
+        $expiredDevices = Device::where('expiration_date', '<', now())->count();
+        $expiringSoonDevices = Device::whereBetween('expiration_date', [now(), $oneMonthFromNow])->count();
+
         $now = Carbon::now();
         $oneMonthFromNow = $now->copy()->addMonth();
         $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
@@ -345,7 +350,13 @@ class ReportController extends Controller
             'deviceCounts',
             'activatedDevices',
             'inActivatedDevices',
-            'deviceMetrics'
+            'deviceMetrics',
+            'totalDevices',
+            'activeDevices',
+            'inactiveDevices',
+            'expiredDevices',
+            'expiringSoonDevices'
+
         ));
     }
 
