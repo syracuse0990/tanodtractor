@@ -60,12 +60,12 @@
                                     <td><code>{{ $device['imei'] }}</code></td>
                                     <td>
                                         <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-info text-gray-600" role="progressbar"
+                                            <div class="progress-bar bg-info " role="progressbar"
                                                  style="width: {{ min(($device['total_hours'] / 100) * 100, 100) }}%"
                                                  aria-valuenow="{{ $device['total_hours'] }}"
                                                  aria-valuemin="0"
                                                  aria-valuemax="100">
-                                                {{ $device['total_hours'] }} hrs
+                                               <span class="text-gray-600">{{ $device['total_hours'] }} hrs</span>
                                             </div>
                                         </div>
                                     </td>
@@ -76,7 +76,7 @@
                                                  aria-valuenow="{{ $device['total_distance'] }}"
                                                  aria-valuemin="0"
                                                  aria-valuemax="1000">
-                                                {{ $device['total_distance'] }} km
+                                                <span class="text-gray-600">{{ $device['total_distance'] }} km</span>
                                             </div>
                                         </div>
                                     </td>
