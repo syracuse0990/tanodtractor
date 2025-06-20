@@ -61,10 +61,10 @@
                                     <td>
                                         <div class="progress" style="height: 20px;">
                                             <div class="progress-bar bg-info" role="progressbar"
-                                                 style="width: {{ min(($device['total_hours'] / 1000) * 100, 100) }}%"
+                                                 style="width: {{ min(($device['total_hours'] / 100) * 100, 100) }}%"
                                                  aria-valuenow="{{ $device['total_hours'] }}"
                                                  aria-valuemin="0"
-                                                 aria-valuemax="1000">
+                                                 aria-valuemax="100">
                                                 {{ $device['total_hours'] }} hrs
                                             </div>
                                         </div>
@@ -72,10 +72,10 @@
                                     <td>
                                         <div class="progress" style="height: 20px;">
                                             <div class="progress-bar bg-warning" role="progressbar"
-                                                 style="width: {{ min(($device['total_distance'] / 10000) * 100, 100) }}%"
+                                                 style="width: {{ min(($device['total_distance'] / 1000) * 100, 100) }}%"
                                                  aria-valuenow="{{ $device['total_distance'] }}"
                                                  aria-valuemin="0"
-                                                 aria-valuemax="10000">
+                                                 aria-valuemax="1000">
                                                 {{ $device['total_distance'] }} km
                                             </div>
                                         </div>

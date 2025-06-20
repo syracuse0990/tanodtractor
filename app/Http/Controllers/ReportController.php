@@ -253,21 +253,28 @@ class ReportController extends Controller
     //     ];
     //     return view('report.maintenace-report', compact('data'));
     // }
-    public function maintenanceReports()
+public function maintenanceReports(Request $request)
 {
-
     $jimiService = new JimiService();
 
+    // Get all devices
     $devicesResponse = $jimiService->getDeviceList();
-    $devices = $devicesResponse['result'] ?? [];
+    $allDevices = $devicesResponse['result'] ?? [];
 
+    // Paginate the device list first
+    $page = $request->get('page', 1);
+    $perPage = 10;
+    $offset = ($page - 1) * $perPage;
+    $currentPageDevices = array_slice($allDevices, $offset, $perPage);
+
+    // Set date range
     $endDate = now()->format('Y-m-d H:i:s');
     $startDate = now()->subDays(30)->format('Y-m-d H:i:s');
 
     $maintenanceData = [];
 
-    foreach ($devices as $device) {
-
+    // Only process devices for the current page
+    foreach ($currentPageDevices as $device) {
         $mileageResponse = $jimiService->getDeviceMileage(
             [$device['imei']],
             $startDate,
@@ -297,7 +304,19 @@ class ReportController extends Controller
         ];
     }
 
-    return view('report.maintenace-report', compact('maintenanceData'));
+    // Create paginator
+    $maintenanceDataPaginated = new \Illuminate\Pagination\LengthAwarePaginator(
+        $maintenanceData,
+        count($allDevices),
+        $perPage,
+        $page,
+        [
+            'path' => $request->url(),
+            'query' => $request->query(),
+        ]
+    );
+
+    return view('report.maintenace-report', ['maintenanceData' => $maintenanceDataPaginated]);
 }
 
     public function checkFile(Request $request)
