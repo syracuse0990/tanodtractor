@@ -506,6 +506,10 @@ public function maintenanceReports(Request $request)
     //     return view('report.device-reports', compact('totalDevices', 'activeDevices', 'inactiveDevices', 'expiredDevices', 'expiringSoonDevices', 'activatedDevices', 'inActivatedDevices'));
     // }
 
+    public function apiDocumentation(){
+        return view('report.api-documentation');
+    }
+
 
 
 

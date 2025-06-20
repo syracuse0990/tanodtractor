@@ -262,6 +262,13 @@
                                     <span>Tractor Reports</span>
                                 </a>
                             </div>
+                            <div class="accordion-body">
+                                <a class="{{ request()->is('api-documentation') ? 'active' : '' }}"
+                                    href="{{ route('reports.apiDocumentation') }}">
+                                    <i class="fa-sharp fa-solid fa-comments"></i>
+                                    <span>API Documentation</span>
+                                </a>
+                            </div>
 
                             <div class="accordion-body">
 
