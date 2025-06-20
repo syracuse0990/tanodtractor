@@ -135,10 +135,9 @@
                     </button>
                 </div>
             </div>
-              <div class="mt-4">
-                {{ $maintenanceData->links() }}
-
-            </div>
+              <<div class="mt-4">
+    {{ $maintenanceData->links('pagination::bootstrap-5') }}
+</div>
         </div>
     </div>
 </div>
