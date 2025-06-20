@@ -297,7 +297,7 @@ class ReportController extends Controller
         ];
     }
 
-    return view('report.maintenance-report', compact('maintenanceData'));
+    return view('report.maintenace-report', compact('maintenanceData'));
 }
 
     public function checkFile(Request $request)
