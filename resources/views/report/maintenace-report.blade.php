@@ -126,6 +126,9 @@
             </div>
 
             <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                 <div class="my-2">
+                    {{ $maintenanceData->links('pagination::bootstrap-5') }}
+                </div>
                 <div class="text-muted small">
                     Showing {{ count($maintenanceData) }} devices
                 </div>
@@ -135,9 +138,7 @@
                     </button>
                 </div>
             </div>
-              <<div class="mt-4">
-    {{ $maintenanceData->links('pagination::bootstrap-5') }}
-</div>
+
         </div>
     </div>
 </div>
