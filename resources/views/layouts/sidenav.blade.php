@@ -289,7 +289,7 @@
                                             </div>
                                             <div class="accordion-body">
                                                 <a class="{{ request()->is('maintenance-reports') ? 'active' : '' }}"
-                                                    href="{{ route('reports.maintenaceReports') }}">
+                                                    href="{{ route('reports.maintenanceReports') }}">
                                                     <i class="fa-solid fa-chart-line"></i>
                                                     <span>Maintenance Report</span>
                                                 </a>
