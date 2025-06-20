@@ -100,7 +100,7 @@ $tractors = Tractor::where('state_id', 1)->count();
                         <div class="d-flex align-items-center">
                             <div class="text-white">
                                 <h2 class="mb-0 number-font">{{ $feedbackCount }}</h2>
-                                <p class="text-white mb-0">Report{{ $feedbackCount > 1 ? 's' : '' }} </p>
+                                <p class="text-white mb-0">Farmer Feedback{{ $feedbackCount > 1 ? 's' : '' }} </p>
                             </div>
                             <div class="ms-auto"> <i
                                     class="fa-sharp fa-solid fa-comments text-white fs-30 me-2 mt-2"></i>
