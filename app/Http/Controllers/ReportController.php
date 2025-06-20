@@ -270,7 +270,7 @@ class ReportController extends Controller
     foreach ($devices as $device) {
 
         $mileageResponse = $jimiService->getDeviceMileage(
-            [$device['imei_no']],
+            [$device['imei']],
             $startDate,
             $endDate
         );
@@ -291,7 +291,7 @@ class ReportController extends Controller
 
         $maintenanceData[] = [
             'device_name' => $device['deviceName'],
-            'imei' => $device['imei_no'],
+            'imei' => $device['imei'],
             'total_hours' => round($totalHours, 2),
             'total_distance' => round($totalDistance, 2),
             'needs_pms' => $needsPms,
