@@ -40,7 +40,7 @@
                                 <th scope="col">IMEI</th>
                                 <th scope="col">Total Hours</th>
                                 <th scope="col">Total Distance (km)</th>
-                                <th scope="col">Last Active</th>
+
                                 <th scope="col">PMS Due</th>
                                 <th scope="col" class="text-end pe-4">Status</th>
                             </tr>
@@ -80,13 +80,7 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td>
-                                        @if($device['last_active'])
-                                            {{ \Carbon\Carbon::parse($device['last_active'])->diffForHumans() }}
-                                        @else
-                                            <span class="text-muted">Never</span>
-                                        @endif
-                                    </td>
+
                                     <td>
                                         @if($device['needs_pms'])
                                             <span class="badge bg-danger bg-opacity-10 text-danger">
