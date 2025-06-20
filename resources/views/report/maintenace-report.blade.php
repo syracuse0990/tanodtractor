@@ -65,7 +65,7 @@
                                                  aria-valuenow="{{ $device['total_hours'] }}"
                                                  aria-valuemin="0"
                                                  aria-valuemax="100">
-                                               <span class="text-gray-600">{{ $device['total_hours'] }} hrs</span>
+                                               <span class="text-secondary">{{ $device['total_hours'] }} hrs</span>
                                             </div>
                                         </div>
                                     </td>
@@ -76,7 +76,7 @@
                                                  aria-valuenow="{{ $device['total_distance'] }}"
                                                  aria-valuemin="0"
                                                  aria-valuemax="1000">
-                                                <span class="text-gray-600">{{ $device['total_distance'] }} km</span>
+                                                <span class="text-secondary">{{ $device['total_distance'] }} km</span>
                                             </div>
                                         </div>
                                     </td>
