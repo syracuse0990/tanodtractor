@@ -255,25 +255,24 @@ class ReportController extends Controller
     // }
 public function maintenanceReports(Request $request)
 {
+
+
     $jimiService = new JimiService();
 
-    // Get all devices
     $devicesResponse = $jimiService->getDeviceList();
     $allDevices = $devicesResponse['result'] ?? [];
 
-    // Paginate the device list first
+
     $page = $request->get('page', 1);
     $perPage = 10;
     $offset = ($page - 1) * $perPage;
     $currentPageDevices = array_slice($allDevices, $offset, $perPage);
 
-    // Set date range
+    $startDate = \Carbon\Carbon::create(2023, 1, 1, 0, 0, 0)->format('Y-m-d H:i:s');
     $endDate = now()->format('Y-m-d H:i:s');
-    $startDate = now()->subDays(30)->format('Y-m-d H:i:s');
 
     $maintenanceData = [];
 
-    // Only process devices for the current page
     foreach ($currentPageDevices as $device) {
         $mileageResponse = $jimiService->getDeviceMileage(
             [$device['imei']],
