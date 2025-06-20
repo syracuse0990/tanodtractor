@@ -60,7 +60,7 @@
                                     <td><code>{{ $device['imei'] }}</code></td>
                                     <td>
                                         <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-info" role="progressbar"
+                                            <div class="progress-bar bg-info text-gray-600" role="progressbar"
                                                  style="width: {{ min(($device['total_hours'] / 100) * 100, 100) }}%"
                                                  aria-valuenow="{{ $device['total_hours'] }}"
                                                  aria-valuemin="0"
@@ -71,7 +71,7 @@
                                     </td>
                                     <td>
                                         <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-warning" role="progressbar"
+                                            <div class="progress-bar bg-warning text-gray-600" role="progressbar"
                                                  style="width: {{ min(($device['total_distance'] / 1000) * 100, 100) }}%"
                                                  aria-valuenow="{{ $device['total_distance'] }}"
                                                  aria-valuemin="0"
@@ -124,6 +124,7 @@
                     </table>
                 </div>
             </div>
+
             <div class="card-footer bg-light d-flex justify-content-between align-items-center">
                 <div class="text-muted small">
                     Showing {{ count($maintenanceData) }} devices
@@ -133,6 +134,10 @@
                         <i class="fas fa-sync-alt me-1"></i> Refresh Data
                     </button>
                 </div>
+            </div>
+              <div class="mt-4">
+                {{ $maintenanceData->links() }}
+
             </div>
         </div>
     </div>
