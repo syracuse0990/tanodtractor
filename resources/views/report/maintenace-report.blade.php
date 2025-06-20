@@ -194,7 +194,7 @@
     </section>
     @push('js')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+    {{-- <script>
         document.addEventListener('DOMContentLoaded', function () {
             var ctx = document.getElementById('myPieChart').getContext('2d');
             var myPieChart = new Chart(ctx, {
@@ -253,6 +253,6 @@
                 }]
             });
         });
-    </script>
+    </script> --}}
     @endpush
 </x-app-layout>
