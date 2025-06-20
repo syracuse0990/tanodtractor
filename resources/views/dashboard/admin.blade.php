@@ -20,7 +20,7 @@ $bookings = TractorBooking::where('state_id', TractorBooking::STATE_ACTIVE)
 ->latest('id')
 ->take(5)
 ->get();
-$feedbackCount = 34; //FarmerFeedback::where('state_id', TractorBooking::STATE_ACTIVE)->count();
+$feedbackCount = 2; //FarmerFeedback::where('state_id', TractorBooking::STATE_ACTIVE)->count();
 $farmerFeedbacks = FarmerFeedback::where('state_id', TractorBooking::STATE_ACTIVE)
 ->latest('id')
 ->take(5)
