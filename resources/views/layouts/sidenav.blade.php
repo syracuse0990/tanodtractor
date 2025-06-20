@@ -23,7 +23,7 @@
                     <div class="accordion-item bg-transparent border-0">
                         <h2 class="accordion-header" id="panelsStayOpen-headingTwo">
                             <button
-                                class="accordion-button sidebar-acc-btn bg-transparent border-0 
+                                class="accordion-button sidebar-acc-btn bg-transparent border-0
     @if (request()->is('sub-admin') || request()->is('tractor-groups') || request()->is('pages')) parent-active
     @else
         collapsed @endif"
@@ -72,7 +72,7 @@
                     <div class="accordion-item bg-transparent border-0">
                         <h2 class="accordion-header" id="panelsStayOpen-headingThree">
                             <button
-                                class="accordion-button sidebar-acc-btn bg-transparent border-0 
+                                class="accordion-button sidebar-acc-btn bg-transparent border-0
     @if (request()->is('devices*') ||
             request()->is('tractors') ||
             request()->is('farm-assets') ||
@@ -132,7 +132,7 @@
                     <div class="accordion-item bg-transparent border-0">
                         <h2 class="accordion-header" id="panelsStayOpen-headingFour">
                             <button
-                                class="accordion-button sidebar-acc-btn bg-transparent border-0 
+                                class="accordion-button sidebar-acc-btn bg-transparent border-0
     @if (request()->is('tractor-bookings/booking-list') ||
             request()->is('maintenances') ||
             request()->is('issue-types') ||
@@ -192,7 +192,7 @@
                     <div class="accordion-item bg-transparent border-0">
                         <h2 class="accordion-header" id="panelsStayOpen-headingFive">
                             <button
-                                class="accordion-button sidebar-acc-btn bg-transparent border-0 
+                                class="accordion-button sidebar-acc-btn bg-transparent border-0
     @if (request()->is('liveview') || request()->is('device-geo-fences')) parent-active
     @else
         collapsed @endif"
@@ -234,7 +234,7 @@
                     <div class="accordion-item bg-transparent border-0">
                         <h2 class="accordion-header" id="panelsStayOpen-headingSix">
                             <button
-                                class="accordion-button sidebar-acc-btn bg-transparent border-0 
+                                class="accordion-button sidebar-acc-btn bg-transparent border-0
     @if (request()->is('overview') || request()->is('farmer-feedbacks') || request()->is('auto-reports')) parent-active
     @else
         collapsed @endif"
@@ -291,7 +291,7 @@
                                                 <a class="{{ request()->is('maintenance-reports') ? 'active' : '' }}"
                                                     href="{{ route('reports.maintenaceReports') }}">
                                                     <i class="fa-solid fa-chart-line"></i>
-                                                    <span>Mainteance Report</span>
+                                                    <span>Maintenance Report</span>
                                                 </a>
                                             </div>
                                             <div class="accordion-body">

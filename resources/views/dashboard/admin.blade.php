@@ -3,6 +3,8 @@ use App\Models\User;
 use App\Models\TractorGroup;
 use App\Models\TractorBooking;
 use App\Models\FarmerFeedback;
+use App\Models\Device;
+use App\Models\Tractor;
 
 $userCount = User::whereNotIn('role_id', [User::ROLE_ADMIN,User::ROLE_GOVERNMENT,User::ROLE_SYSTEM_ADMIN, User::ROLE_SUB_ADMIN])->count();
 $users = User::whereNotIn('role_id', [User::ROLE_ADMIN,User::ROLE_GOVERNMENT,User::ROLE_SYSTEM_ADMIN, User::ROLE_SUB_ADMIN])
@@ -23,6 +25,10 @@ $farmerFeedbacks = FarmerFeedback::where('state_id', TractorBooking::STATE_ACTIV
 ->latest('id')
 ->take(5)
 ->get();
+
+$activeDevices = Device::whereNotNull('activation_time')->where('expiration_date', '>', now())->count();
+$inactiveDevices = Device::whereNull('activation_time')->orWhere('activation_time', 'Inactive')->count();
+$tractors = Tractor::where('state_id', 1)->count();
 @endphp
 <x-app-layout>
     <!-- card design  -->
@@ -100,6 +106,54 @@ $farmerFeedbacks = FarmerFeedback::where('state_id', TractorBooking::STATE_ACTIV
                             </div>
                             <div class="ms-auto"> <i
                                     class="fa-sharp fa-solid fa-comments text-white fs-30 me-2 mt-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-6 col-xl-3 mb-3">
+            <a href="{{ route('users.index') }}">
+                <div class="card img-card bg-info border-0">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="text-white">
+                                <h2 class="mb-0 number-font">{{ $tractors }}</h2>
+                                <p class="text-white mb-0">Tractor{{ $tractors > 1 ? 's' : '' }} </p>
+                            </div>
+                            <div class="ms-auto"> <i class="fa-solid fa-tractor text-white fs-30 me-2 mt-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-6 col-xl-3 mb-3">
+            <a href="{{ route('users.index') }}">
+                <div class="card img-card bg-success border-0">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="text-white">
+                                <h2 class="mb-0 number-font">{{ $activeDevices }}</h2>
+                                <p class="text-white mb-0">Active Device{{ $activeDevices > 1 ? 's' : '' }} </p>
+                            </div>
+                            <div class="ms-auto"> <i class="fa-solid fa-tablet-screen-button text-white fs-30 me-2 mt-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-6 col-xl-3 mb-3">
+            <a href="{{ route('users.index') }}">
+                <div class="card img-card bg-danger border-0">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="text-white">
+                                <h2 class="mb-0 number-font">{{ $inactiveDevices }}</h2>
+                                <p class="text-white mb-0">Inactive Device{{ $inactiveDevices > 1 ? 's' : '' }} </p>
+                            </div>
+                            <div class="ms-auto"> <i class="fa-solid fa-tablet-screen-button text-white fs-30 me-2 mt-2"></i>
                             </div>
                         </div>
                     </div>

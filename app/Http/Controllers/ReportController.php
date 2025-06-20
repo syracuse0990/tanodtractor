@@ -215,44 +215,93 @@ class ReportController extends Controller
         return new LengthAwarePaginator($items->forPage($page, $perPage), $items->count(), $perPage, $page, $options);
     }
 
-    public function maintenaceReports()
-    {
-        $maintenanceCount = Maintenance::query();
-        if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
-            $maintenanceCount = $maintenanceCount->where('created_by', Auth::id())->count();
-        } else {
-            $maintenanceCount = $maintenanceCount->count();
-        }
-        $maintenances = Maintenance::query();
-        if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
-            $maintenances = $maintenances->where('created_by', Auth::id())->get();
-        } else {
-            $maintenances = $maintenances->get();
-        }
-        $documentation = $filled = $inprogress = $completed = $cancelled = 0;
-        foreach ($maintenances as $key => $maintenance) {
-            if ($maintenance->state_id == Maintenance::STATE_DOCUMENTATION) {
-                $documentation++;
-            } elseif ($maintenance->state_id == Maintenance::STATE_FILLED) {
-                $filled++;
-            } elseif ($maintenance->state_id == Maintenance::STATE_INPROGRESS) {
-                $inprogress++;
-            } elseif ($maintenance->state_id == Maintenance::STATE_COMPLETED) {
-                $completed++;
-            } elseif ($maintenance->state_id == Maintenance::STATE_CANCELLED) {
-                $cancelled++;
+    // public function maintenaceReports()
+    // {
+    //     $maintenanceCount = Maintenance::query();
+    //     if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
+    //         $maintenanceCount = $maintenanceCount->where('created_by', Auth::id())->count();
+    //     } else {
+    //         $maintenanceCount = $maintenanceCount->count();
+    //     }
+    //     $maintenances = Maintenance::query();
+    //     if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
+    //         $maintenances = $maintenances->where('created_by', Auth::id())->get();
+    //     } else {
+    //         $maintenances = $maintenances->get();
+    //     }
+    //     $documentation = $filled = $inprogress = $completed = $cancelled = 0;
+    //     foreach ($maintenances as $key => $maintenance) {
+    //         if ($maintenance->state_id == Maintenance::STATE_DOCUMENTATION) {
+    //             $documentation++;
+    //         } elseif ($maintenance->state_id == Maintenance::STATE_FILLED) {
+    //             $filled++;
+    //         } elseif ($maintenance->state_id == Maintenance::STATE_INPROGRESS) {
+    //             $inprogress++;
+    //         } elseif ($maintenance->state_id == Maintenance::STATE_COMPLETED) {
+    //             $completed++;
+    //         } elseif ($maintenance->state_id == Maintenance::STATE_CANCELLED) {
+    //             $cancelled++;
+    //         }
+    //     }
+    //     $data = [
+    //         'total' => $maintenanceCount,
+    //         'documentation' => $documentation,
+    //         'filled' => $filled,
+    //         'inprogress' => $inprogress,
+    //         'completed' => $completed,
+    //         'cancelled' => $cancelled,
+    //     ];
+    //     return view('report.maintenace-report', compact('data'));
+    // }
+    public function maintenanceReports()
+{
+
+    $jimiService = new JimiService();
+
+    $devicesResponse = $jimiService->getDeviceList();
+    $devices = $devicesResponse['result'] ?? [];
+
+    // Calculate date range (last 30 days)
+    $endDate = now()->format('Y-m-d H:i:s');
+    $startDate = now()->subDays(120)->format('Y-m-d H:i:s');
+
+    $maintenanceData = [];
+
+    foreach ($devices as $device) {
+
+        $mileageResponse = $jimiService->getDeviceMileage(
+            [$device['imei_no']],
+            $startDate,
+            $endDate
+        );
+
+        // Calculate totals
+        $totalHours = 0;
+        $totalDistance = 0;
+
+        if (isset($mileageResponse['result'])) {
+            foreach ($mileageResponse['result'] as $trip) {
+                $totalHours += $trip['runTimeSecond'] / 3600; // Convert seconds to hours
+                $totalDistance += $trip['distance'] / 1000; // Convert meters to kilometers
             }
         }
-        $data = [
-            'total' => $maintenanceCount,
-            'documentation' => $documentation,
-            'filled' => $filled,
-            'inprogress' => $inprogress,
-            'completed' => $completed,
-            'cancelled' => $cancelled,
+
+        // Determine if PMS (Preventive Maintenance Service) is needed
+        $needsPms = $totalHours >= 500 || $totalDistance >= 5000; // Example thresholds
+
+        $maintenanceData[] = [
+            'device_name' => $device['deviceName'],
+            'imei' => $device['imei_no'],
+            'total_hours' => round($totalHours, 2),
+            'total_distance' => round($totalDistance, 2),
+            'needs_pms' => $needsPms,
+            'status' => $device['status'] ?? 'unknown',
+            'last_active' => $device['hbTime'] ?? null,
         ];
-        return view('report.maintenace-report', compact('data'));
     }
+
+    return view('report.maintenance-report', compact('maintenanceData'));
+}
 
     public function checkFile(Request $request)
     {
@@ -325,12 +374,11 @@ class ReportController extends Controller
         $startTime = $now->copy()->startOfDay()->subDays(30)->format('Y-m-d H:i:s');
         $endTime = $now->format('Y-m-d H:i:s');
 
-        // Use 'active_page' for activated devices
         $activatedDevices = Device::whereNotNull('activation_time')
             ->where('expiration_date', '>', $now)
             ->paginate(10, ['*'], 'active_page');
 
-        // Use 'inactive_page' for inactivated devices
+
         $inActivatedDevices = Device::whereNull('activation_time')->orWhere('activation_time', 'Inactive')
             ->paginate(10, ['*'], 'inactive_page');
 

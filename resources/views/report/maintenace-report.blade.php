@@ -11,7 +11,177 @@
         </div>
         @endif
         <div class="row">
-            <div class="col-md-12">
+            <div class="row my-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header text-white d-flex justify-content-between align-items-center bg-success">
+                <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Maintenance Report</h5>
+                <div class="d-flex">
+                    <div class="dropdown me-2">
+                        <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download me-1"></i> Export
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
+                        </ul>
+                    </div>
+                    <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" class="ps-4">Device</th>
+                                <th scope="col">IMEI</th>
+                                <th scope="col">Total Hours</th>
+                                <th scope="col">Total Distance (km)</th>
+                                <th scope="col">Last Active</th>
+                                <th scope="col">PMS Due</th>
+                                <th scope="col" class="text-end pe-4">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($maintenanceData as $device)
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-tractor text-primary me-2"></i>
+                                            <div>
+                                                <strong>{{ $device['device_name'] }}</strong>
+                                                <div class="text-muted small">{{ $device['vehicleNumber'] ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><code>{{ $device['imei'] }}</code></td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-info" role="progressbar"
+                                                 style="width: {{ min(($device['total_hours'] / 1000) * 100, 100) }}%"
+                                                 aria-valuenow="{{ $device['total_hours'] }}"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="1000">
+                                                {{ $device['total_hours'] }} hrs
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-warning" role="progressbar"
+                                                 style="width: {{ min(($device['total_distance'] / 10000) * 100, 100) }}%"
+                                                 aria-valuenow="{{ $device['total_distance'] }}"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="10000">
+                                                {{ $device['total_distance'] }} km
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if($device['last_active'])
+                                            {{ \Carbon\Carbon::parse($device['last_active'])->diffForHumans() }}
+                                        @else
+                                            <span class="text-muted">Never</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($device['needs_pms'])
+                                            <span class="badge bg-danger bg-opacity-10 text-danger">
+                                                <i class="fas fa-exclamation-circle me-1"></i> Due Now
+                                            </span>
+                                        @else
+                                            @php
+                                                $hoursLeft = 500 - $device['total_hours'];
+                                                $kmLeft = 5000 - $device['total_distance'];
+                                                $nextPms = min($hoursLeft, $kmLeft);
+                                            @endphp
+                                            <span class="badge bg-success bg-opacity-10 text-success">
+                                                <i class="fas fa-check-circle me-1"></i> {{ ceil($nextPms) }} left
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        @if($device['status'] == '1')
+                                            <span class="badge bg-success bg-opacity-10 text-success">
+                                                <i class="fas fa-circle me-1"></i> Online
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                                                <i class="fas fa-circle me-1"></i> Offline
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">No devices found or data unavailable</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Showing {{ count($maintenanceData) }} devices
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">Filter Options</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">Date Range</label>
+                        <div class="input-group">
+                            <input type="date" class="form-control" name="start_date">
+                            <span class="input-group-text">to</span>
+                            <input type="date" class="form-control" name="end_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">PMS Status</label>
+                        <select class="form-select" name="pms_status">
+                            <option value="all">All</option>
+                            <option value="due">Due for PMS</option>
+                            <option value="ok">PMS Not Due</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Device Status</label>
+                        <select class="form-select" name="device_status">
+                            <option value="all">All</option>
+                            <option value="online">Online</option>
+                            <option value="offline">Offline</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
+            {{-- <div class="col-md-12">
                 <div class="card card-default">
                     <div class="card-body">
                         <div style="width: 40%; margin: auto;">
@@ -19,7 +189,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> --}}
         </div>
     </section>
     @push('js')
