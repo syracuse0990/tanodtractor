@@ -261,9 +261,8 @@ class ReportController extends Controller
     $devicesResponse = $jimiService->getDeviceList();
     $devices = $devicesResponse['result'] ?? [];
 
-    // Calculate date range (last 30 days)
     $endDate = now()->format('Y-m-d H:i:s');
-    $startDate = now()->subDays(120)->format('Y-m-d H:i:s');
+    $startDate = now()->subDays(30)->format('Y-m-d H:i:s');
 
     $maintenanceData = [];
 
@@ -275,19 +274,17 @@ class ReportController extends Controller
             $endDate
         );
 
-        // Calculate totals
         $totalHours = 0;
         $totalDistance = 0;
 
         if (isset($mileageResponse['result'])) {
             foreach ($mileageResponse['result'] as $trip) {
-                $totalHours += $trip['runTimeSecond'] / 3600; // Convert seconds to hours
-                $totalDistance += $trip['distance'] / 1000; // Convert meters to kilometers
+                $totalHours += $trip['runTimeSecond'] / 3600;
+                $totalDistance += $trip['distance'] / 1000;
             }
         }
 
-        // Determine if PMS (Preventive Maintenance Service) is needed
-        $needsPms = $totalHours >= 500 || $totalDistance >= 5000; // Example thresholds
+        $needsPms = $totalHours >= 100 || $totalDistance >= 1000;
 
         $maintenanceData[] = [
             'device_name' => $device['deviceName'],
