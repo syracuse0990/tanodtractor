@@ -125,7 +125,7 @@
                 </div>
             </div>
 
-            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+            <div class="card-footer bg-light d-flex justify-content-end align-items-center">
 
 
                     {{ $maintenanceData->links('pagination::bootstrap-5') }}
