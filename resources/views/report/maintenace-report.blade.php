@@ -94,22 +94,22 @@
                                             </span>
                                         @else
                                             @php
-                                                $hoursLeft = 500 - $device['total_hours'];
-                                                $kmLeft = 5000 - $device['total_distance'];
+                                                $hoursLeft = 100 - $device['total_hours'];
+                                                $kmLeft = 1000 - $device['total_distance'];
                                                 $nextPms = min($hoursLeft, $kmLeft);
                                             @endphp
-                                            <span class="badge bg-success bg-opacity-10 text-success">
+                                            <span class="badge bg-success bg-opacity-10 text-white">
                                                 <i class="fas fa-check-circle me-1"></i> {{ ceil($nextPms) }} left
                                             </span>
                                         @endif
                                     </td>
                                     <td class="text-end pe-4">
                                         @if($device['status'] == '1')
-                                            <span class="badge bg-success bg-opacity-10 text-success">
+                                            <span class="badge bg-success bg-opacity-10 text-white">
                                                 <i class="fas fa-circle me-1"></i> Online
                                             </span>
                                         @else
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                                            <span class="badge bg-secondary bg-opacity-10 text-white">
                                                 <i class="fas fa-circle me-1"></i> Offline
                                             </span>
                                         @endif
