@@ -126,11 +126,7 @@
             </div>
 
             <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                <div>
-                    <button class="btn btn-sm btn-outline-success">
-                        <i class="fas fa-sync-alt me-1"></i> Refresh Data
-                    </button>
-                </div>
+
                  <div class="my-2">
                     {{ $maintenanceData->links('pagination::bootstrap-5') }}
                 </div>
