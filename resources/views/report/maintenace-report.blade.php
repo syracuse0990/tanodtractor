@@ -127,9 +127,9 @@
 
             <div class="card-footer bg-light d-flex justify-content-between align-items-center">
 
-                 <div class="my-2">
+
                     {{ $maintenanceData->links('pagination::bootstrap-5') }}
-                </div>
+
 
 
             </div>
