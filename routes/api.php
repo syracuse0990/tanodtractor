@@ -16,6 +16,8 @@ use App\Http\Api\AlertController;
 use App\Http\Api\FarmAssetController;
 use App\Http\Api\NotificationController;
 use App\Http\Api\TicketController;
+use App\Http\Api\PhilMechController;
+
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +30,8 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+Route::get('generate-token', [PhilMechController::class, 'createToken']);
+
 
 // Authentication Routes
 Route::prefix('user')->name('user.')->group(function () {
@@ -45,6 +49,8 @@ Route::prefix('user')->name('user.')->group(function () {
     Route::post('/get-api-data', [AuthController::class, 'getData']);
     Route::get('/page-detail', [PageController::class, 'show']);
     Route::post('/send-maintenance-notification', [TractorController::class, 'sendMaintenanceNotification']);
+
+
 
 
     Route::middleware([
