@@ -32,6 +32,36 @@ use Illuminate\Support\Facades\Route;
 */
 Route::get('generate-token', [PhilMechController::class, 'createToken']);
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('token', [PhilMechController::class, 'getToken']);
+    Route::post('token/refresh', [PhilMechController::class, 'refreshToken']);
+
+    Route::get('devices', [PhilMechController::class, 'getDeviceList']);
+    Route::get('devices/{imei}', [PhilMechController::class, 'getDeviceDetail']);
+    Route::get('devices/locations', [PhilMechController::class, 'getDeviceLocationList']);
+    Route::post('devices/locations/current', [PhilMechController::class, 'getDeviceLocation']);
+    Route::post('devices/locations/tag', [PhilMechController::class, 'getTagDeviceLocation']);
+    Route::get('devices/{imei}/sharing-url', [PhilMechController::class, 'getSharingLocationUrl']);
+    Route::post('devices/expiration', [PhilMechController::class, 'updateExpiration']);
+    Route::post('devices/mileage', [PhilMechController::class, 'getDeviceMileage']);
+    Route::post('devices/track-data', [PhilMechController::class, 'getDeviceTrackData']);
+    Route::post('devices/{imei}/vehicle-info', [PhilMechController::class, 'updateVehicleInfo']);
+    Route::post('devices/move', [PhilMechController::class, 'moveDevices']);
+
+    Route::post('devices/media/url', [PhilMechController::class, 'getDeviceMediaUrl']);
+
+    Route::post('geo-fences', [PhilMechController::class, 'createGeoFence']);
+
+    Route::get('devices/{imei}/commands', [PhilMechController::class, 'getCommandList']);
+    Route::post('devices/{imei}/commands', [PhilMechController::class, 'sendCommand']);
+
+    Route::post('reports/parking-idling', [PhilMechController::class, 'getParkingIdlingData']);
+
+    Route::post('device-groups', [PhilMechController::class, 'createDeviceGroup']);
+
+    Route::post('devices/{imei}/bind', [PhilMechController::class, 'bindAppUser']);
+    Route::post('devices/{imei}/unbind', [PhilMechController::class, 'unbindAppUser']);
+});
 
 // Authentication Routes
 Route::prefix('user')->name('user.')->group(function () {
