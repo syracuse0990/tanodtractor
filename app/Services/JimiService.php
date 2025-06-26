@@ -389,6 +389,7 @@ class JimiService
         return md5($signString);
     }
 
+
     /**
      * Make the actual HTTP request
      */

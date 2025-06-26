@@ -5,6 +5,7 @@ namespace App\Http\Api;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Services\JimiService;
+use Illuminate\Support\Facades\Validator;
 
 class PhilMechController extends BaseController
 {
