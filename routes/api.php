@@ -48,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('devices/{imei}/vehicle-info', [PhilMechController::class, 'updateVehicleInfo']);
     Route::post('devices/move', [PhilMechController::class, 'moveDevices']);
 
+
     Route::post('devices/media/url', [PhilMechController::class, 'getDeviceMediaUrl']);
 
     Route::post('geo-fences', [PhilMechController::class, 'createGeoFence']);
@@ -61,6 +62,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('devices/{imei}/bind', [PhilMechController::class, 'bindAppUser']);
     Route::post('devices/{imei}/unbind', [PhilMechController::class, 'unbindAppUser']);
+
+    Route::get('devices/{imei}/live-url', [JimiController::class, 'getDeviceLiveUrl']);
+    Route::get('devices/{imei}/lbs-address', [JimiController::class, 'getLbsAddress']);
+    Route::delete('geo-fences/{imei}/{instruct_no}', [JimiController::class, 'deleteGeoFence']);
+    Route::get('devices/{imei}/alarms', [JimiController::class, 'getAlarmList']);
+    Route::post('devices/{imei}/trigger-alarm', [JimiController::class, 'alarm']);
+
 });
 
 // Authentication Routes

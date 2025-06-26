@@ -324,6 +324,16 @@ class PhilMechController extends BaseController
         }
     }
 
+    public function deleteGeoFence($imei, $instructNo)
+    {
+        try {
+            $response = $this->jimiService->deleteGeoFence($imei, $instructNo);
+            return $this->sendResponse($response, 'Geo-fence deleted successfully');
+        } catch (\Exception $e) {
+            return $this->sendError('Failed to delete geo-fence', $e->getMessage(), 500);
+        }
+    }
+
     public function getCommandList($imei){
         try {
             $response = $this->jimiService->getCommandList($imei);
@@ -428,6 +438,50 @@ class PhilMechController extends BaseController
             return $this->sendResponse($response, 'User bound to device successfully');
         } catch (\Exception $e) {
             return $this->sendError('Failed to bind user to device', $e->getMessage(), 500);
+        }
+    }
+
+     public function getDeviceLiveUrl($imei)
+    {
+        try {
+            $response = $this->jimiService->getDeviceLiveUrl($imei);
+            return $this->sendResponse($response, 'Live URL retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError('Failed to get live URL', $e->getMessage(), 500);
+        }
+    }
+
+    public function getLbsAddress($imei)
+    {
+        try {
+            $response = $this->jimiService->getLbsAddress($imei);
+            return $this->sendResponse($response, 'LBS address retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError('Failed to get LBS address', $e->getMessage(), 500);
+        }
+    }
+
+    public function getAlarmList(Request $request, $imei)
+    {
+        try {
+            $response = $this->jimiService->getAlarmList(
+                $imei,
+                $request->query('alert_type_id'),
+                $request->query('begin_time'),
+                $request->query('end_time')
+            );
+            return $this->sendResponse($response, 'Alarm list retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError('Failed to get alarm list', $e->getMessage(), 500);
+        }
+    }
+    public function alarm($imei)
+    {
+        try {
+            $response = $this->jimiService->alarm($imei);
+            return $this->sendResponse($response, 'Alarm triggered successfully');
+        } catch (\Exception $e) {
+            return $this->sendError('Failed to trigger alarm', $e->getMessage(), 500);
         }
     }
 
