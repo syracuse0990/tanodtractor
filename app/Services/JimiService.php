@@ -414,10 +414,31 @@ class JimiService
         return gmdate('Y-m-d H:i:s');
     }
 
-    public function getTagDeviceLocation(array $imeis): array
-{
-    return $this->authenticatedRequest('jimi.device.location.getTagMsg', [
-        'imeis' => implode(',', $imeis)
-    ]);
-}
+    public function getTagDeviceLocation(array $imeis): array{
+        try {
+            // Ensure we have at least one IMEI
+            if (empty($imeis)) {
+                throw new \InvalidArgumentException('At least one IMEI must be provided');
+            }
+
+            // Validate each IMEI format if needed
+            foreach ($imeis as $imei) {
+                if (!preg_match('/^[A-Za-z0-9]+$/', $imei)) {
+                    throw new \InvalidArgumentException('Invalid IMEI format: ' . $imei);
+                }
+            }
+
+            return $this->authenticatedRequest('jimi.device.location.getTagMsg', [
+                'imeis' => implode(',', $imeis),
+                'map_type' => 'GOOGLE' // Adding map_type parameter which is commonly required
+            ], '1.0', 'POST', true); // Explicitly setting version and method
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get TAG device locations: ' . $e->getMessage(), [
+                'imeis' => $imeis,
+                'error' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
 }
