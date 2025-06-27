@@ -413,4 +413,11 @@ class JimiService
     {
         return gmdate('Y-m-d H:i:s');
     }
+
+    public function getTagDeviceLocation(array $imeis): array
+{
+    return $this->authenticatedRequest('jimi.device.location.getTagMsg', [
+        'imeis' => implode(',', $imeis)
+    ]);
+}
 }
