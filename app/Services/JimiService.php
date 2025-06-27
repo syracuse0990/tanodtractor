@@ -440,63 +440,46 @@ class JimiService
         }
     }
 
-public function getParkingIdlingData(
-    string $account,
-    $imeis,
-    string $startTime,
-    string $endTime,
-    string $accType,
-    int $startRow = 1,
-    int $pageSize = 10
-): array {
-    try {
-        // Convert array of IMEIs to comma-separated string if needed
-        $imeisString = is_array($imeis) ? implode(',', $imeis) : $imeis;
-        
-        // Validate accType (based on API requirements)
-        if (!in_array($accType, ['0', '1'])) {
-            throw new \InvalidArgumentException('acc_type must be "0" (parking) or "1" (idling)');
+    public function getParkingIdlingData(
+        string $account,
+        string $imeis,
+        string $startTime,
+        string $endTime,
+        string $accType,
+        int $startRow = 1,
+        int $pageSize = 10
+    ): array {
+
+        if (empty($account) || empty($imeis) || empty($startTime) || empty($endTime) || empty($accType)) {
+            throw new \InvalidArgumentException('Required parameters cannot be empty');
         }
 
-        // Format dates to match API expectations
-        $formattedStart = date('Y-m-d H:i:s', strtotime($startTime));
-        $formattedEnd = date('Y-m-d H:i:s', strtotime($endTime));
-
-        // Validate date range
-        if (strtotime($formattedStart) > strtotime($formattedEnd)) {
-            throw new \InvalidArgumentException('Start time cannot be after end time');
+        if ($startRow < 1) {
+            throw new \InvalidArgumentException('Start row must be at least 1');
         }
 
-        $params = [
-            'account' => $account,
-            'imeis' => $imeisString,
-            'start_time' => $formattedStart,
-            'end_time' => $formattedEnd,
-            'acc_type' => $accType,
-            'start_row' => max(1, $startRow),  // Ensure at least 1
-            'page_size' => min(max(1, $pageSize), 100)  // Clamp between 1-100
-        ];
-
-        // Debug log the parameters being sent
-        Log::debug('Parking/Idling request params:', $params);
-
-        $response = $this->authenticatedRequest('jimi.open.platform.report.parking', $params);
-
-        // Check for API-level validation errors
-        if (isset($response['code']) && $response['code'] == 1001) {
-            throw new \RuntimeException('API validation failed: ' . ($response['message'] ?? 'Unknown error'));
+        if ($pageSize < 1 || $pageSize > 100) {
+            throw new \InvalidArgumentException('Page size must be between 1 and 100');
         }
 
-        return $response;
-
-    } catch (\Exception $e) {
-        Log::error('Parking/Idling data error: ' . $e->getMessage(), [
-            'account' => $account,
-            'imeis' => $imeis,
-            'start_time' => $startTime,
-            'end_time' => $endTime
-        ]);
-        throw $e;
+        try {
+            return $this->authenticatedRequest('jimi.open.platform.report.parking', [
+                'account' => $account,
+                'imeis' => $imeis,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'acc_type' => $accType,
+                'start_row' => $startRow,
+                'page_size' => $pageSize
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get parking/idling data: ' . $e->getMessage(), [
+                'account' => $account,
+                'imeis' => $imeis,
+                'start_time' => $startTime,
+                'end_time' => $endTime
+            ]);
+            throw $e;
+        }
     }
-}
 }
