@@ -371,7 +371,7 @@ class PhilMechController extends BaseController
 
     public function getParkingIdlingData(Request $request){
         $validator = Validator::make($request->all(), [
-            'account' => 'required|string',
+       
             'imeis' => 'required|string',
             'start_time' => 'required|date',
             'end_time' => 'required|date|after_or_equal:start_time',
@@ -386,7 +386,7 @@ class PhilMechController extends BaseController
 
         try {
             $response = $this->jimiService->getParkingIdlingData(
-                $request->account,
+                "Admin_LAPC",
                 $request->imeis,
                 $request->start_time,
                 $request->end_time,
