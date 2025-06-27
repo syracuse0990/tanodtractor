@@ -468,8 +468,7 @@ class JimiService
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'acc_type' => $accType,
-                'start_row' => $startRow,
-                'page_size' => $pageSize
+        
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get parking/idling data: ' . $e->getMessage(), [
