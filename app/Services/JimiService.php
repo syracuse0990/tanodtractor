@@ -416,12 +416,10 @@ class JimiService
 
     public function getTagDeviceLocation(array $imeis): array{
         try {
-            // Ensure we have at least one IMEI
             if (empty($imeis)) {
                 throw new \InvalidArgumentException('At least one IMEI must be provided');
             }
 
-            // Validate each IMEI format if needed
             foreach ($imeis as $imei) {
                 if (!preg_match('/^[A-Za-z0-9]+$/', $imei)) {
                     throw new \InvalidArgumentException('Invalid IMEI format: ' . $imei);
@@ -430,13 +428,55 @@ class JimiService
 
             return $this->authenticatedRequest('jimi.device.location.getTagMsg', [
                 'imeis' => implode(',', $imeis),
-                'map_type' => 'GOOGLE' // Adding map_type parameter which is commonly required
-            ], '1.0', 'POST', true); // Explicitly setting version and method
+                'map_type' => 'GOOGLE' 
+            ], '1.0', 'POST', true);
 
         } catch (\Exception $e) {
             Log::error('Failed to get TAG device locations: ' . $e->getMessage(), [
                 'imeis' => $imeis,
                 'error' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
+
+    public function getParkingIdlingData(
+        string $account,
+        string $imeis,
+        string $startTime,
+        string $endTime,
+        string $accType,
+        int $startRow = 1,
+        int $pageSize = 10
+    ): array {
+        if (empty($account) || empty($imeis) || empty($startTime) || empty($endTime) || empty($accType)) {
+            throw new \InvalidArgumentException('Required parameters cannot be empty');
+        }
+
+        if ($startRow < 1) {
+            throw new \InvalidArgumentException('Start row must be at least 1');
+        }
+
+        if ($pageSize < 1 || $pageSize > 100) {
+            throw new \InvalidArgumentException('Page size must be between 1 and 100');
+        }
+
+        try {
+            return $this->authenticatedRequest('jimi.open.platform.report.parking', [
+                'account' => $account,
+                'imeis' => $imeis,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'acc_type' => $accType,
+                'start_row' => $startRow,
+                'page_size' => $pageSize
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to get parking/idling data: ' . $e->getMessage(), [
+                'account' => $account,
+                'imeis' => $imeis,
+                'start_time' => $startTime,
+                'end_time' => $endTime
             ]);
             throw $e;
         }
