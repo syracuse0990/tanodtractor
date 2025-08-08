@@ -117,10 +117,10 @@ class TractorGroupController extends Controller
                 abort(403, 'You are not allowed to perform this action!!!');
             }
         }
-        $tractors = Tractor::whereIn('id', ($tractorGroup->tractor_ids ? json_decode($tractorGroup->tractor_ids) : []))->get();
+        $tractors = Tractor::whereIn('id', ($tractorGroup->tractor_ids ? json_decode(json_encode($tractorGroup->tractor_ids)) : []))->get();
         $farmers = User::whereIn('id', ($tractorGroup->farmer_ids ? json_decode($tractorGroup->farmer_ids) : []))->get();
-        $devices = Device::whereIn('id', ($tractorGroup->device_ids ? json_decode($tractorGroup->device_ids) : []))->get();
-        $bookings = TractorBooking::whereIn('tractor_id', ($tractorGroup->tractor_ids ? json_decode($tractorGroup->tractor_ids, true) : []))->orWhereIn('device_id', ($tractorGroup->device_ids ? json_decode($tractorGroup->device_ids, true) : []))->whereNotIn('state_id', [TractorBooking::STATE_DELETED])->orderBy('state_id', 'ASC')->orderBy('id', 'DESC');
+        $devices = Device::whereIn('id', ($tractorGroup->device_ids ? json_decode(json_encode($tractorGroup->device_ids)) : []))->get();
+        $bookings = TractorBooking::whereIn('tractor_id', ($tractorGroup->tractor_ids ? json_decode(json_encode($tractorGroup->tractor_ids), true) : []))->orWhereIn('device_id', ($tractorGroup->device_ids ? json_decode(json_encode($tractorGroup->device_ids), true) : []))->whereNotIn('state_id', [TractorBooking::STATE_DELETED])->orderBy('state_id', 'ASC')->orderBy('id', 'DESC');
         if ($request->search) {
             $search = $request->search;
             $bookings = $bookings->whereHas('tractor', function (Builder $query) use ($request) {
