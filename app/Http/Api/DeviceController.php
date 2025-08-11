@@ -485,7 +485,7 @@ class DeviceController extends Controller
                     ]);
                 }
 
-                $deviceIds = json_decode($group->device_ids, true);
+                $deviceIds = json_decode(json_encode($group->device_ids), true);
                 $devices = $query->whereIn('id', $deviceIds)->get();
             } else {
                 return  response()->json(['status' => false, 'message' => 'Unauthorized access', 'data' => []]);
