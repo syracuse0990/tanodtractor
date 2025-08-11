@@ -191,7 +191,11 @@ public function deviceLists(Request $request)
             });
 
             if ($group && !empty($group->device_ids)) {
-                $devices = Device::whereIn('id', json_decode(json_encode($group->device_ids), true))
+                $deviceIds = is_array($group->device_ids)
+                    ? $group->device_ids
+                    : json_decode($group->device_ids, true);
+
+                $devices = Device::whereIn('id', $deviceIds)
                     ->latest('id')
                     ->get();
 
