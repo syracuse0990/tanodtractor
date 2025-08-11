@@ -58,18 +58,25 @@ if (!function_exists('returnNotFoundResponse')) {
 }
 
 if (!function_exists('multiDimToSingleDim')) {
-
-    function multiDimToSingleDim($array = array())
+    function multiDimToSingleDim($array = [])
     {
         $mergedArray = [];
 
         foreach ($array as $item) {
-            $decodedItem = json_decode($item, true);
+            // Only decode if it's a JSON string
+            if (is_string($item)) {
+                $decodedItem = json_decode($item, true);
+            } elseif (is_array($item)) {
+                $decodedItem = $item;
+            } else {
+                $decodedItem = [];
+            }
 
             if (is_array($decodedItem)) {
                 $mergedArray = array_merge($mergedArray, $decodedItem);
             }
         }
+
         return $mergedArray;
     }
 }
