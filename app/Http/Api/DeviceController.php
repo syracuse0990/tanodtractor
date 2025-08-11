@@ -186,12 +186,12 @@ public function deviceLists(Request $request)
             $userId = Auth::id();
 
             $group = TractorGroup::get()->first(function ($group) use ($userId) {
-                $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
+                $farmerIds = $group->farmer_ids ? json_decode(json_encode($group->farmer_ids), true) : [];
                 return in_array($userId, $farmerIds);
             });
 
             if ($group && !empty($group->device_ids)) {
-                $devices = Device::whereIn('id', json_decode($group->device_ids, true))
+                $devices = Device::whereIn('id', json_decode(json_encode($group->device_ids), true))
                     ->latest('id')
                     ->get();
 
