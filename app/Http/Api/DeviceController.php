@@ -168,12 +168,7 @@ public function deviceLists(Request $request)
 
                 $devices = Device::whereNotIn('id', $deviceIds)
                     ->latest('id')
-                    ->paginate(
-                        $request->records_per_page ?? 10,
-                        ['*'],
-                        'page',
-                        $request->page_no ?? 1
-                    );
+                    ->get();
             }
 
             return returnSuccessResponse('Get all device list successfully', [
