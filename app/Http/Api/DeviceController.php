@@ -164,7 +164,7 @@ public function deviceLists(Request $request)
                     return $q->where('id', '!=', $request->group_id);
                 })->pluck('device_ids')->toArray();
 
-                $deviceIds = multiDimToSingleDim($deviceIds);
+                // $deviceIds = multiDimToSingleDim($deviceIds);
 
                 $devices = Device::whereNotIn('id', $deviceIds)
                     ->latest('id')
