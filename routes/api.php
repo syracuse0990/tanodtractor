@@ -127,6 +127,7 @@ Route::prefix('user')->name('user.')->group(function () {
 
         //Device
         Route::post('/device-list', [DeviceController::class, 'index']);
+        Route::post('/device-lists', [DeviceController::class, 'deviceLists']);
         Route::post('/create-device', [DeviceController::class, 'store']);
         Route::get('/device-detail', [DeviceController::class, 'show']);
         Route::post('/update-device', [DeviceController::class, 'update']);

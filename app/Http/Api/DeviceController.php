@@ -132,6 +132,76 @@ class DeviceController extends Controller
         }
     }
 
+    public function deviceLists(Request $request){
+        try {
+            if (in_array(Auth::user()->role_id, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
+                if ($request->allData) {
+                    $device = Device::query();
+                    if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
+                        $assignedGroups = AssignedGroup::where('user_id', Auth::id())->pluck('group_id')->toArray();
+                        $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
+                        $deviceIds = $groups->pluck('device_ids')->flatten()->toArray();
+                        $deviceIds = multiDimToSingleDim($deviceIds);
+                        $device = $device->whereIn('id', $deviceIds);
+                    }
+                    if ($request->search) {
+                        $device->where('imei', 'LIKE', '%' . $request->search . '%');
+                    }
+                    $device = $device->latest('id');
+
+                    $returnArrData = [
+                        'devices' => $device->all(),
+
+                    ];
+                } else {
+                    if ($request->group_id) {
+                        $deviceData = TractorGroup::where('id', '!=', $request->group_id)->pluck('device_ids')->toArray();
+                        $device_ids = multiDimToSingleDim($deviceData);
+                        $device = Device::whereNotIn('id', $device_ids)->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
+
+                        $returnArrData = [
+                            'devices' => $device->all(),
+                        ];
+                    } else {
+                        $deviceData = TractorGroup::pluck('device_ids')->toArray();
+                        $device_ids = multiDimToSingleDim($deviceData);
+                        $device = Device::whereNotIn('id', $device_ids)->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
+
+                        $returnArrData = [
+                            'devices' => $device->all(),
+                        ];
+                    }
+                }
+                return returnSuccessResponse('Get all device list successfully', $returnArrData);
+            } elseif (Auth::user()->role_id == User::ROLE_FARMER) {
+                $currentUserGroup = $farmerGroup = null;
+                $user_id = Auth::user()->id;
+                $groups = TractorGroup::get();
+                foreach ($groups as $group) {
+                    $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
+                    if (in_array($user_id, $farmerIds)) {
+                        $currentUserGroup = $group;
+                    }
+                }
+                $farmerGroup = $currentUserGroup;
+                if (!empty($farmerGroup->device_ids)) {
+                    $device = Device::whereIn('id', json_decode($farmerGroup->device_ids, true))->latest('id');
+
+
+                    $returnArrData = [
+                        'devices' => $device->all(),
+                    ];
+                    return returnSuccessResponse('Get all device list successfully ', $returnArrData);
+                } else {
+                    return returnSuccessResponse('No record found!!');
+                }
+            }
+        } catch (\Exception $e) {
+
+            return  response()->json(['status' => false, 'message' => 'An error occurred:' . $e->getMessage(), 'data' => []]);
+        }
+    }
+
     /**
      * Store a newly created resource in storage.
      *
