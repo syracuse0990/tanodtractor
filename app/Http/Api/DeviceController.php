@@ -475,11 +475,16 @@ class DeviceController extends Controller
                 $devices = $query->whereIn('id', $deviceIds)->get();
             } elseif ($roleId == User::ROLE_FARMER) {
                 //$groupId = Tractor::where('farmer_id', $userId)->value('group_id');
-                $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)
-    ->pluck('id');
+                $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)->first();
+
                 if (!$group) {
-                    return  response()->json(['status' => false, 'message' => 'No devices found', 'data' => []]);
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'No devices found',
+                        'data' => []
+                    ]);
                 }
+
                 $deviceIds = json_decode($group->device_ids, true);
                 $devices = $query->whereIn('id', $deviceIds)->get();
             } else {
