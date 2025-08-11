@@ -132,75 +132,89 @@ class DeviceController extends Controller
         }
     }
 
-    public function deviceLists(Request $request){
-        try {
-            if (in_array(Auth::user()->role_id, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
-                if ($request->allData) {
-                    $device = Device::query();
-                    if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
-                        $assignedGroups = AssignedGroup::where('user_id', Auth::id())->pluck('group_id')->toArray();
-                        $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
-                        $deviceIds = $groups->pluck('device_ids')->flatten()->toArray();
-                        $deviceIds = multiDimToSingleDim($deviceIds);
-                        $device = $device->whereIn('id', $deviceIds);
-                    }
-                    if ($request->search) {
-                        $device->where('imei', 'LIKE', '%' . $request->search . '%');
-                    }
-                    $device = $device->latest('id');
+public function deviceLists(Request $request)
+{
+    try {
+        $roleId = Auth::user()->role_id;
 
-                    $returnArrData = [
-                        'devices' => $device->all(),
+        // ADMIN, SUB_ADMIN, GOVERNMENT
+        if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
+            $deviceQuery = Device::query();
 
-                    ];
-                } else {
-                    if ($request->group_id) {
-                        $deviceData = TractorGroup::where('id', '!=', $request->group_id)->pluck('device_ids')->toArray();
-                        $device_ids = multiDimToSingleDim($deviceData);
-                        $device = Device::whereNotIn('id', $device_ids)->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
+            if ($request->allData) {
+                if ($roleId === User::ROLE_SUB_ADMIN) {
+                    $assignedGroups = AssignedGroup::where('user_id', Auth::id())
+                        ->pluck('group_id')
+                        ->toArray();
 
-                        $returnArrData = [
-                            'devices' => $device->all(),
-                        ];
-                    } else {
-                        $deviceData = TractorGroup::pluck('device_ids')->toArray();
-                        $device_ids = multiDimToSingleDim($deviceData);
-                        $device = Device::whereNotIn('id', $device_ids)->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
+                    $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
+                    $deviceIds = multiDimToSingleDim($groups->pluck('device_ids')->flatten()->toArray());
 
-                        $returnArrData = [
-                            'devices' => $device->all(),
-                        ];
-                    }
+                    $deviceQuery->whereIn('id', $deviceIds);
                 }
-                return returnSuccessResponse('Get all device list successfully', $returnArrData);
-            } elseif (Auth::user()->role_id == User::ROLE_FARMER) {
-                $currentUserGroup = $farmerGroup = null;
-                $user_id = Auth::user()->id;
-                $groups = TractorGroup::get();
-                foreach ($groups as $group) {
-                    $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
-                    if (in_array($user_id, $farmerIds)) {
-                        $currentUserGroup = $group;
-                    }
-                }
-                $farmerGroup = $currentUserGroup;
-                if (!empty($farmerGroup->device_ids)) {
-                    $device = Device::whereIn('id', json_decode($farmerGroup->device_ids, true))->latest('id');
 
-
-                    $returnArrData = [
-                        'devices' => $device->all(),
-                    ];
-                    return returnSuccessResponse('Get all device list successfully ', $returnArrData);
-                } else {
-                    return returnSuccessResponse('No record found!!');
+                if (!empty($request->search)) {
+                    $deviceQuery->where('imei', 'LIKE', '%' . $request->search . '%');
                 }
+
+                $devices = $deviceQuery->latest('id')->get();
+            } else {
+                // Devices not in selected group
+                $deviceIds = TractorGroup::when($request->group_id, function ($q) use ($request) {
+                    return $q->where('id', '!=', $request->group_id);
+                })->pluck('device_ids')->toArray();
+
+                $deviceIds = multiDimToSingleDim($deviceIds);
+
+                $devices = Device::whereNotIn('id', $deviceIds)
+                    ->latest('id')
+                    ->paginate(
+                        $request->records_per_page ?? 10,
+                        ['*'],
+                        'page',
+                        $request->page_no ?? 1
+                    );
             }
-        } catch (\Exception $e) {
 
-            return  response()->json(['status' => false, 'message' => 'An error occurred:' . $e->getMessage(), 'data' => []]);
+            return returnSuccessResponse('Get all device list successfully', [
+                'devices' => $devices
+            ]);
         }
+
+        // FARMER
+        if ($roleId === User::ROLE_FARMER) {
+            $userId = Auth::id();
+
+            $group = TractorGroup::get()->first(function ($group) use ($userId) {
+                $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
+                return in_array($userId, $farmerIds);
+            });
+
+            if ($group && !empty($group->device_ids)) {
+                $devices = Device::whereIn('id', json_decode($group->device_ids, true))
+                    ->latest('id')
+                    ->get();
+
+                return returnSuccessResponse('Get all device list successfully', [
+                    'devices' => $devices
+                ]);
+            }
+
+            return returnSuccessResponse('No record found!!');
+        }
+
+        // Default fallback
+        return returnSuccessResponse('No record found!!');
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'An error occurred: ' . $e->getMessage(),
+            'data' => []
+        ]);
     }
+}
+
 
     /**
      * Store a newly created resource in storage.
