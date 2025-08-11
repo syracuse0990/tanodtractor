@@ -186,7 +186,7 @@ public function deviceLists(Request $request)
             $userId = Auth::id();
 
             $group = TractorGroup::get()->first(function ($group) use ($userId) {
-                $farmerIds = $group->farmer_ids ? json_decode(json_encode($group->farmer_ids), true) : [];
+                $farmerIds = $group->farmer_ids ? $group->farmer_ids : [];
                 return in_array($userId, $farmerIds);
             });
 
