@@ -155,9 +155,26 @@ class UserController extends Controller
         $userData['country_code'] = $request->country_code;
         $user->update($userData);
 
-        $emie_no = $request->device_id;
-        $jimiService = new JimiService();
-        $jimiService->bindAppUser($emie_no, $user->id);
+        // $emie_no = $request->device_id;
+        // $jimiService = new JimiService();
+        // $jimiService->bindAppUser($emie_no, $user->id);
+
+        $group_id = $request->group_id;
+
+        $group = TractorGroup::findOrFail($group_id);
+        $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
+        if (!is_array($farmerIds)) {
+            $farmerIds = [];
+        }
+
+        if (!in_array($user->id, $farmerIds)) {
+            $farmerIds[] = $user->id;
+        }
+
+        $group->update([
+            'farmer_ids' => json_encode($farmerIds),
+        ]);
+
 
         if ($request->file('profile_photo_path')) {
             $path = $request->file('profile_photo_path')->store('image', 'public');

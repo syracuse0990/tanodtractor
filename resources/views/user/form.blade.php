@@ -107,6 +107,21 @@ use App\Models\Device;
         </div>
         <div class="col-md-6 mb-3">
             <div class="form-group">
+                {{ Form::label('group_id', 'Assign Group') }}
+                {{ Form::select(
+                    'group_id',
+                    TractorGroup::pluck('name', 'id'),
+                    old('group_id'),
+                    [
+                        'class' => 'form-control' . ($errors->has('group_id') ? ' is-invalid' : ''),
+                        'placeholder' => 'Select Group'
+                    ]
+                ) }}
+                {!! $errors->first('group_id', '<div class="invalid-feedback">:message</div>') !!}
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="form-group">
                 {{ Form::label('device_id', 'Assign Device') }}
                 {{ Form::select(
                     'device_id',
