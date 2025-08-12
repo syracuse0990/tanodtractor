@@ -108,7 +108,7 @@ class DeviceController extends Controller
                 }
                 $farmerGroup = $currentUserGroup;
                 if (!empty($farmerGroup->device_ids)) {
-                    $device = Device::whereIn('id', json_decode($farmerGroup->device_ids, true))->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
+                    $device = Device::whereIn('id', $farmerGroup->device_ids)->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
                     $totalCount = $device->total();
                     $total_pages = ceil($totalCount / $request->records_per_page);
                     $listArr = array();
