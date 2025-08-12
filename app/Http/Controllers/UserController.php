@@ -160,14 +160,28 @@ class UserController extends Controller
         // $jimiService->bindAppUser($emie_no, $user->id);
 
         $group_id = $request->group_id;
+        $userIdString = (string) $user->id;
+
+        TractorGroup::where('id', '!=', $group_id)->get()->each(function ($grp) use ($userIdString) {
+            $ids = $grp->farmer_ids ? $grp->farmer_ids : [];
+
+            if (!is_array($ids)) {
+                $ids = [];
+            }
+
+            // Remove the user if present
+            if (($key = array_search($userIdString, $ids)) !== false) {
+                unset($ids[$key]);
+                $grp->update(['farmer_ids' => json_encode(array_values($ids))]); 
+            }
+        });
+
         $group = TractorGroup::findOrFail($group_id);
-        $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
+        $farmerIds = $group->farmer_ids ? $group->farmer_ids : [];
 
         if (!is_array($farmerIds)) {
             $farmerIds = [];
         }
-
-        $userIdString = (string) $user->id;
 
         if (!in_array($userIdString, $farmerIds)) {
             $farmerIds[] = $userIdString;
