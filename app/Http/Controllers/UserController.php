@@ -169,15 +169,15 @@ class UserController extends Controller
                 $ids = [];
             }
 
-            // Remove the user if present
             if (($key = array_search($userIdString, $ids)) !== false) {
                 unset($ids[$key]);
-                $grp->update(['farmer_ids' => json_encode(array_values($ids))]); 
+                $grp->update(['farmer_ids' => json_encode(array_values($ids))]); // reindex array
             }
         });
 
+        // 2. Add the user to the new group
         $group = TractorGroup::findOrFail($group_id);
-        $farmerIds = $group->farmer_ids ? $group->farmer_ids : [];
+        $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
 
         if (!is_array($farmerIds)) {
             $farmerIds = [];
