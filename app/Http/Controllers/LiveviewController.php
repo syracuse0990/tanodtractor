@@ -69,11 +69,10 @@ public function appendGroupDevices(Request $request)
     try {
         $userId = Auth::id();
         $roleId = Auth::user()->role_id;
-        $account = Auth::user()->tracksolid_account; // assuming you store this
 
 
         // Fetch group list from Tracksolid Pro API
-        $apiGroups = $this->jimiService->getDeviceGroupList($account)['result'] ?? [];
+        $apiGroups = $this->jimiService->getDeviceGroupList()['result'] ?? [];
 
         // Map to [group_id => [device_ids...]] from API
         $apiGroupMap = collect($apiGroups)->map(function ($group) {
