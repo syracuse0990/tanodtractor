@@ -55,6 +55,15 @@
                             @endif
                             @if (!in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]))
                                 <div class="accordion-body">
+                                    <a href="{{ route('users.technicians') }}"
+                                        class="{{ request()->is('technicians') ? 'active' : '' }}">
+                                        <i class="fa-solid fa-user-shield"></i>
+                                        <span>Technician</span>
+                                    </a>
+                                </div>
+                            @endif
+                            @if (!in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]))
+                                <div class="accordion-body">
                                     <a href="{{ route('pages.index') }}"
                                         class="{{ request()->is('pages') ? 'active' : '' }}">
                                         <i class="fa-solid fa-file-alt"></i>

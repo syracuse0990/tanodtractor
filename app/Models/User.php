@@ -30,7 +30,9 @@ class User extends Authenticatable
     const ROLE_GOVERNMENT = 1;
     const ROLE_FARMER = 2;
     const ROLE_SUB_ADMIN = 3;
+    const ROLE_TECHNICIAN = 4;
     const ROLE_SYSTEM_ADMIN = 9;
+
 
     public const STATE_INACTIVE = 0;
     public const STATE_ACTIVE = 1;
@@ -116,6 +118,7 @@ class User extends Authenticatable
             self::ROLE_GOVERNMENT => 'Government',
             self::ROLE_FARMER => 'Farmer',
             self::ROLE_SUB_ADMIN => 'Sub Admin',
+            self::ROLE_TECHNICIAN => 'Technician',
         ];
     }
 

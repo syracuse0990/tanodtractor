@@ -19,10 +19,10 @@
                     <div class="d-flex gap-3">
                         <h3 class="card-title mb-0 fw-500">
                             {{ request()->is('sub-admin')
-                                ? 'Sub Admin'
-                                : 'Farmer groups/Recepients' }}
+                                ? 'Sub Admin' :
+                                (request()->is('technicians') ? 'Technicians' : 'Farmer groups/Recepients') }}
                         </h3>
-                        @if (request()->is('sub-admin'))
+                        @if (request()->is('sub-admin') || request()->is('technicians'))
                             <div>
                                 <a href="{{ route('users.create') }}"
                                     class="btn btn-primary btn-icon text-white btn-sm rounded-pill px-3">
@@ -38,7 +38,7 @@
                                     value="{{ $search }}">
                             </div>
                         </form>
-                        @if (!request()->is('sub-admin') && !in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]))
+                        @if (!request()->is('sub-admin') && !in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]) && !request()->is('technicians') && !in_array(Auth::user()->role_id, [User::ROLE_TECHNICIANS]))
                             <div class="">
                                 <button class="btn btn-success" data-bs-toggle="modal"
                                     data-bs-target="#importUsersModal">Import</button>
@@ -75,7 +75,7 @@
                                             <td>{{ ++$i }}</td>
                                             <td>{{ $user->name }}</td>
                                             <td>{{ $user->email }}</td>
-                                           
+
                                             <td>{{ $user->phone }}</td>
                                             <td>{{ $user->getRole() }}</td>
                                             {{-- <td>{{ $user->getGender() }}</td> --}}

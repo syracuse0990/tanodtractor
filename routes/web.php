@@ -43,6 +43,7 @@ Route::middleware([
     'check_admin'
 ])->group(function () {
     Route::get('/sub-admin', [UserController::class, 'subAdmin'])->name('users.subAdmin');
+    Route::get('/technicians', [UserController::class, 'technicians'])->name('users.technicians');
     Route::get('/assign-users', [UserController::class, 'assignIndex'])->name('users.assignIndex');
     Route::get('/assign-user', [UserController::class, 'assignUser'])->name('users.assignUser');
     Route::get('/assign-groups', [TractorGroupController::class, 'assignIndex'])->name('tractor-groups.assignIndex');

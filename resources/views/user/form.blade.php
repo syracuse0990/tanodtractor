@@ -49,7 +49,16 @@ use App\Models\Device;
                 {!! $errors->first('gender', '<div class="invalid-feedback">:message</div>') !!}
             </div>
         </div>
-        
+        <div class="col-md-6 mb-3">
+            <div class="form-group">
+                {{ Form::label('Role') }}
+                {{ Form::select('role_id', User::roleOptions(), old('role_id') ?? $user->role_id, ['class' =>
+                'form-control' .
+                ($errors->has('role_id') ? ' is-invalid' : ''), 'placeholder' => 'Role']) }}
+                {!! $errors->first('role_id', '<div class="invalid-feedback">:message</div>') !!}
+            </div>
+        </div>
+
     </div>
     <div class="row">
         <div class="col-md-12">
@@ -107,6 +116,16 @@ use App\Models\Device;
         </div>
         <div class="col-md-6 mb-3">
             <div class="form-group">
+                {{ Form::label('Role') }}
+                {{ Form::select('role_id', User::roleOptions(), old('role_id') ?? $user->role_id, ['class' =>
+                'form-control' .
+                ($errors->has('role_id') ? ' is-invalid' : ''), 'placeholder' => 'Role']) }}
+                {!! $errors->first('role_id', '<div class="invalid-feedback">:message</div>') !!}
+            </div>
+        </div>
+        @if($user->role_id == USER::ROLE_FARMER)
+        <div class="col-md-6 mb-3">
+            <div class="form-group">
                 {{ Form::label('group_id', 'Assign Group') }}
                 {{ Form::select(
                     'group_id',
@@ -120,7 +139,8 @@ use App\Models\Device;
                 {!! $errors->first('group_id', '<div class="invalid-feedback">:message</div>') !!}
             </div>
         </div>
-        <div class="col-md-6 mb-3">
+        @endif
+        {{-- <div class="col-md-6 mb-3">
             <div class="form-group">
                 {{ Form::label('device_id', 'Assign Device') }}
                 {{ Form::select(
@@ -136,8 +156,8 @@ use App\Models\Device;
                 ) }}
                 {!! $errors->first('device_id', '<div class="invalid-feedback">:message</div>') !!}
             </div>
-        </div>
-        
+        </div> --}}
+
 
     </div>
     <div class="row">

@@ -87,12 +87,13 @@ class UserController extends Controller
             'name' => 'required',
             'email' => 'required|email:rfc,dns|unique:users,email',
             'phone' => 'required|numeric|unique:users,phone',
-            'gender' => 'required'
+            'gender' => 'required',
+            'role_id' => 'required',
         ]);
 
         $userData = $request->all();
-        $userData['role_id'] = User::ROLE_SUB_ADMIN;
-        $userData['password'] = Hash::make('subadmin@123');
+        $userData['role_id'] =  $request->role_id; //User::ROLE_SUB_ADMIN;
+        $userData['password'] = Hash::make('tanod@2025');
         $userData['phone_country'] = '+' . $request->phone_country;
         $userData['country_code'] = $request->country_code;
         $userData['state_id'] = User::STATE_ACTIVE;
@@ -171,7 +172,7 @@ class UserController extends Controller
 
             if (($key = array_search($userIdString, $ids)) !== false) {
                 unset($ids[$key]);
-                $grp->update(['farmer_ids' => json_encode(array_values($ids))]); 
+                $grp->update(['farmer_ids' => json_encode(array_values($ids))]);
             }
         });
 
@@ -284,6 +285,22 @@ class UserController extends Controller
     public function subAdmin(Request $request)
     {
         $users = User::whereIn('role_id', [User::ROLE_SUB_ADMIN])->orderBy('id', 'DESC');
+        $search = null;
+        if ($request->search) {
+            $search = $request->search;
+            $users =  $users->where(function (Builder $query) use ($search) {
+                return $query->where('name', 'LIKE', '%' . $search . '%')
+                    ->orWhere('email', 'LIKE', '%' . $search . '%')->orWhere('phone', 'LIKE', '%' . $search . '%');
+            })->paginate();
+        } else {
+            $users = $users->paginate();
+        }
+        return view('user.index', compact('users', 'search'))
+            ->with('i', (request()->input('page', 1) - 1) * $users->perPage());
+    }
+
+    public function technicians(Request $request){
+        $users = User::whereIn('role_id', [User::ROLE_TECHNICIAN])->orderBy('id', 'DESC');
         $search = null;
         if ($request->search) {
             $search = $request->search;
