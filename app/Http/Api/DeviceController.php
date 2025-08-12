@@ -544,7 +544,7 @@ public function deviceLists(Request $request)
                 ->whereNotNull('activation_time');
 
             // Role-based filtering
-            if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_GOVERNMENT])) {
+            if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_GOVERNMENT, User::ROLE_TECHNICIAN])) {
                 $devices = $query->get();
             } elseif ($roleId == User::ROLE_SUB_ADMIN) {
                 $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
