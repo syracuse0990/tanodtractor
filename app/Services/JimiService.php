@@ -158,6 +158,45 @@ class JimiService
         ]);
     }
 
+        public function createDeviceGroup(string $account, string $groupName): array
+    {
+        return $this->authenticatedRequest('jimi.device.group.create', [
+            'account' => $account,
+            'group_name' => $groupName,
+        ]);
+    }
+
+    /**
+     * Edit device group
+     */
+    public function editDeviceGroup(string $groupId, string $groupName): array
+    {
+        return $this->authenticatedRequest('jimi.device.group.update', [
+            'group_id' => $groupId,
+            'group_name' => $groupName,
+        ]);
+    }
+
+    /**
+     * Delete device group
+     */
+    public function deleteDeviceGroup(string $groupId): array
+    {
+        return $this->authenticatedRequest('jimi.device.group.delete', [
+            'group_id' => $groupId,
+        ]);
+    }
+
+    /**
+     * Get device group list of an account
+     */
+    public function getDeviceGroupList(string $account): array
+    {
+        return $this->authenticatedRequest('jimi.device.group.list', [
+            'account' => $account,
+        ]);
+    }
+
     /**
      * Get device media URL
      */

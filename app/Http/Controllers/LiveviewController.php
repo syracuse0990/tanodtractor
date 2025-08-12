@@ -14,13 +14,13 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use App\Services\TrackSolidProService;
+use App\Services\JimiService;
 
 class LiveviewController extends Controller
 {
-     private TrackSolidProService $jimiService;
+     private JimiService $jimiService;
 
-    public function __construct(TrackSolidProService $jimiService)
+    public function __construct(JimiService $jimiService)
     {
         $this->jimiService = $jimiService;
     }
@@ -72,7 +72,7 @@ public function appendGroupDevices(Request $request)
 
 
         // Fetch group list from Tracksolid Pro API
-        $apiGroups = $this->jimiService->getDeviceGroupList()['result'] ?? [];
+        $apiGroups = $this->jimiService->getDeviceGroupList('leadsadmin@leadsagri.app')['result'] ?? [];
 
         // Map to [group_id => [device_ids...]] from API
         $apiGroupMap = collect($apiGroups)->map(function ($group) {
