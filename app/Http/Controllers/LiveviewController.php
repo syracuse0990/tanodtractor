@@ -84,52 +84,68 @@ class LiveviewController extends Controller
 
             // Stream the response
             return response()->stream(function () use ($groups, $allDevices, $tractors) {
-                echo "data: " . json_encode(['start' => true]) . "\n\n"; // Signal start
-                ob_flush();
-                flush();
+    try {
+        echo "data: " . json_encode(['start' => true]) . "\n\n";
+        ob_flush();
+        flush();
 
-                foreach ($groups as $group) {
-                    $deviceIds = $group->device_ids ? json_decode($group->device_ids, true) : [];
-                    $deviceImeis = collect($deviceIds)->map(fn($id) => $allDevices[$id]->imei_no ?? null)->filter()->toArray();
+        foreach ($groups as $group) {
+            try {
+                $deviceIds = $group->device_ids ? json_decode($group->device_ids, true) : [];
+                $deviceImeis = collect($deviceIds)
+                    ->map(fn($id) => $allDevices[$id]->imei_no ?? null)
+                    ->filter()
+                    ->toArray();
 
-                    // Split IMEIs into chunks for API request
-                    $batchSize = 99;
-                    $imeisChunks = array_chunk($deviceImeis, $batchSize);
-                    $apiData = [];
+                $batchSize = 99;
+                $imeisChunks = array_chunk($deviceImeis, $batchSize);
+                $apiData = [];
 
-                    foreach ($imeisChunks as $chunk) {
-                        $apiResponse = (new Jimi())->getDeviceLocation($chunk)['result'] ?? [];
-                        $apiData = array_merge($apiData, $apiResponse);
-                    }
-
-                    // Render and send HTML for this group immediately
-                    if (!empty($apiData)) {
-                        $view = view('live-view.append-group-device', compact('group', 'apiData', 'tractors'))->render();
-                        $html = ['group_id' => $group->id, 'html' => $view];
-                        echo "data: " . json_encode($html) . "\n\n"; // Send as Server-Sent Event (SSE)
-                        ob_flush();
-                        flush();
-                    } else {
-                        $view = '<div class="d-flex justify-content-between my-3">
-                                <div class="d-flex gap-2">No Data Found</div>
-                            </div>';
-                        $html = ['group_id' => $group->id, 'html' => $view];
-                        echo "data: " . json_encode($html) . "\n\n"; // Send as Server-Sent Event (SSE)
-                        ob_flush();
-                        flush();
-                    }
+                foreach ($imeisChunks as $chunk) {
+                    $apiResponse = (new Jimi())->getDeviceLocation($chunk)['result'] ?? [];
+                    $apiData = array_merge($apiData, $apiResponse);
                 }
 
-                echo "data: " . json_encode(['end' => true]) . "\n\n"; // Signal end
+                if (!empty($apiData)) {
+                    $view = view('live-view.append-group-device', compact('group', 'apiData', 'tractors'))->render();
+                } else {
+                    $view = '<div class="d-flex justify-content-between my-3">
+                                <div class="d-flex gap-2">No Data Found</div>
+                            </div>';
+                }
+
+                $html = ['group_id' => $group->id, 'html' => $view];
+                echo "data: " . json_encode($html) . "\n\n";
                 ob_flush();
                 flush();
-            }, 200, [
-                'Content-Type' => 'text/event-stream',
-                'Cache-Control' => 'no-cache',
-                'Connection' => 'keep-alive',
-            ]);
+
+            } catch (\Throwable $innerEx) {
+                echo "data: " . json_encode([
+                    'group_id' => $group->id,
+                    'error' => $innerEx->getMessage()
+                ]) . "\n\n";
+                ob_flush();
+                flush();
+            }
+        }
+
+        echo "data: " . json_encode(['end' => true]) . "\n\n";
+        ob_flush();
+        flush();
+
+    } catch (\Throwable $outerEx) {
+        echo "data: " . json_encode(['error' => $outerEx->getMessage()]) . "\n\n";
+        ob_flush();
+        flush();
+    }
+}, 200, [
+    'Content-Type' => 'text/event-stream',
+    'Cache-Control' => 'no-cache',
+    'Connection' => 'keep-alive',
+]);
         } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            // return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json(['error' => $e->getMessage()]);
         }
     }
 
