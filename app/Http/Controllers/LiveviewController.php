@@ -14,9 +14,17 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use App\Services\JimiService;
 
 class LiveviewController extends Controller
 {
+     private JimiService $jimiService;
+
+    public function __construct(JimiService $jimiService)
+    {
+        $this->jimiService = $jimiService;
+    }
+
     public function index()
     {
         try {
@@ -63,10 +71,9 @@ public function appendGroupDevices(Request $request)
         $roleId = Auth::user()->role_id;
         $account = Auth::user()->tracksolid_account; // assuming you store this
 
-        $tracksolid = app(TracksolidProService::class);
 
         // Fetch group list from Tracksolid Pro API
-        $apiGroups = $tracksolid->getDeviceGroupList($account)['result'] ?? [];
+        $apiGroups = $jimiService->getDeviceGroupList($account)['result'] ?? [];
 
         // Map to [group_id => [device_ids...]] from API
         $apiGroupMap = collect($apiGroups)->map(function ($group) {
