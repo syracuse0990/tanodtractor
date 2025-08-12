@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Services\JimiService;
 
 /**
  * Class UserController
@@ -153,6 +154,11 @@ class UserController extends Controller
         $userData['phone_country'] = '+' . $request->phone_country;
         $userData['country_code'] = $request->country_code;
         $user->update($userData);
+
+        $emie_no = $request->device_id;
+        $jimiService = new JimiService();
+        $jimiService->bindAppUser($emie_no, $user->id);
+
         if ($request->file('profile_photo_path')) {
             $path = $request->file('profile_photo_path')->store('image', 'public');
             $user->profile_photo_path = $path;

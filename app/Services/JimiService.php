@@ -197,6 +197,14 @@ class JimiService
         ]);
     }
 
+    public function bindAppUser(string $imei, string $userId): array
+    {
+        return $this->authenticatedRequest('jimi.open.device.bind', [
+            'imei' => $imei,
+            'user_id' => $userId,
+        ]);
+    }
+
     /**
      * Get device media URL
      */

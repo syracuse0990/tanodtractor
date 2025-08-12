@@ -1,5 +1,7 @@
 @php
 use App\Models\User;
+use App\Models\TractorGroup;
+use App\Models\Device;
 @endphp
 @if (request()->is('users/create'))
 <div class="default-form">
@@ -47,6 +49,7 @@ use App\Models\User;
                 {!! $errors->first('gender', '<div class="invalid-feedback">:message</div>') !!}
             </div>
         </div>
+        
     </div>
     <div class="row">
         <div class="col-md-12">
@@ -102,6 +105,24 @@ use App\Models\User;
                 {!! $errors->first('gender', '<div class="invalid-feedback">:message</div>') !!}
             </div>
         </div>
+        <div class="col-md-6 mb-3">
+            <div class="form-group">
+                {{ Form::label('device_id', 'Assign Device') }}
+                {{ Form::select(
+                    'device_id',
+                    Device::all()->mapWithKeys(function ($device) {
+                        return [$device->imei_no => $device->imei_no . ' - ' . $device->device_name];
+                    }),
+                    old('device_id'),
+                    [
+                        'class' => 'form-control' . ($errors->has('device_id') ? ' is-invalid' : ''),
+                        'placeholder' => 'Select Device'
+                    ]
+                ) }}
+                {!! $errors->first('device_id', '<div class="invalid-feedback">:message</div>') !!}
+            </div>
+        </div>
+        
 
     </div>
     <div class="row">
