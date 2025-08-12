@@ -73,7 +73,7 @@ public function appendGroupDevices(Request $request)
 
 
         // Fetch group list from Tracksolid Pro API
-        $apiGroups = $jimiService->getDeviceGroupList($account)['result'] ?? [];
+        $apiGroups = $this->jimiService->getDeviceGroupList($account)['result'] ?? [];
 
         // Map to [group_id => [device_ids...]] from API
         $apiGroupMap = collect($apiGroups)->map(function ($group) {
