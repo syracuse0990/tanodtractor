@@ -7,7 +7,7 @@ use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 
-class JimiService
+class TrackSolidProService
 {
     private const API_SECRET = 'ca41d3577eb2494f9030ace810cf7772';
     private const APP_KEY = '8FB345B8693CCD0033FB45E2E5335788339A22A4105B6558';
