@@ -72,7 +72,7 @@ class LiveviewController extends Controller
 
             // Fetch all device IDs in one query
             $groupDeviceIds = $groups->pluck('device_ids')->map(function ($ids) {
-                return json_decode($ids, true) ?? [];
+                return $ids ?? [];
             })->flatten()->unique()->toArray();
 
             $allDevices = Device::whereIn('id', $groupDeviceIds)->get()->keyBy('id');
