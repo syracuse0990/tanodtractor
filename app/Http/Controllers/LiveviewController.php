@@ -56,82 +56,107 @@ class LiveviewController extends Controller
         }
     }
 
-    public function appendGroupDevices(Request $request)
-    {
-        try {
-            $userId = Auth::id();
-            $roleId = Auth::user()->role_id;
+public function appendGroupDevices(Request $request)
+{
+    try {
+        $userId = Auth::id();
+        $roleId = Auth::user()->role_id;
+        $account = Auth::user()->tracksolid_account; // assuming you store this
 
-            // Get relevant group IDs
-            $groupsQuery = TractorGroup::query();
-            if ($roleId == User::ROLE_SUB_ADMIN) {
-                $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
-                $groupsQuery->whereIn('id', $assignedGroups);
+        $tracksolid = app(TracksolidProService::class);
+
+        // Fetch group list from Tracksolid Pro API
+        $apiGroups = $tracksolid->getDeviceGroupList($account)['result'] ?? [];
+
+        // Map to [group_id => [device_ids...]] from API
+        $apiGroupMap = collect($apiGroups)->map(function ($group) {
+            $deviceIds = collect($group['devices'] ?? [])
+                ->pluck('deviceId') // Adjust if API returns imei instead
+                ->toArray();
+
+            return [
+                'id' => $group['groupId'],
+                'name' => $group['groupName'],
+                'device_ids' => $deviceIds
+            ];
+        })->keyBy('id');
+
+        // Filter database groups based on role
+        $groupsQuery = TractorGroup::query();
+        if ($roleId == User::ROLE_SUB_ADMIN) {
+            $assignedGroups = AssignedGroup::where('user_id', $userId)
+                ->pluck('group_id')
+                ->toArray();
+            $groupsQuery->whereIn('id', $assignedGroups);
+        }
+        $dbGroups = $groupsQuery->latest('id')->get();
+
+        // Merge API device IDs into DB groups
+        $groups = $dbGroups->map(function ($group) use ($apiGroupMap) {
+            if (isset($apiGroupMap[$group->id])) {
+                $group->device_ids = $apiGroupMap[$group->id]['device_ids'];
             }
-            $groups = $groupsQuery->latest('id')->get();
+            return $group;
+        });
 
-            // Fetch all device IDs in one query
-            $groupDeviceIds = $groups->pluck('device_ids')->map(function ($ids) {
-                return $ids ?? [];
-            })->flatten()->unique()->toArray();
+        // Gather all device IDs
+        $groupDeviceIds = $groups->pluck('device_ids')
+            ->flatten()
+            ->unique()
+            ->toArray();
 
-            $allDevices = Device::whereIn('id', $groupDeviceIds)->get()->keyBy('id');
+        // Load device details from DB
+        $allDevices = Device::whereIn('id', $groupDeviceIds)
+            ->get()
+            ->keyBy('id');
 
-            // Fetch all tractors in one query
-            $tractors = Tractor::whereIn('device_id', array_unique($groupDeviceIds))
-                ->get()
-                ->keyBy(fn($tractor) => "{$tractor->device_id}-{$tractor->group_id}");
+        // Load tractors
+        $tractors = Tractor::whereIn('device_id', $groupDeviceIds)
+            ->get()
+            ->keyBy(fn($tractor) => "{$tractor->device_id}-{$tractor->group_id}");
 
-            // Stream the response
-            return response()->stream(function () use ($groups, $allDevices, $tractors) {
-                echo "data: " . json_encode(['start' => true]) . "\n\n"; // Signal start
-                ob_flush();
-                flush();
+        // SSE stream
+        return response()->stream(function () use ($groups, $allDevices, $tractors) {
+            echo "data: " . json_encode(['start' => true]) . "\n\n";
+            ob_flush();
+            flush();
 
-                foreach ($groups as $group) {
-                    $deviceIds = $group->device_ids ? $group->device_ids : [];
-                    $deviceImeis = collect($deviceIds)->map(fn($id) => $allDevices[$id]->imei_no ?? null)->filter()->toArray();
+            foreach ($groups as $group) {
+                $deviceIds = $group->device_ids ?? [];
+                $deviceImeis = collect($deviceIds)
+                    ->map(fn($id) => $allDevices[$id]->imei_no ?? null)
+                    ->filter()
+                    ->toArray();
 
-                    // Split IMEIs into chunks for API request
-                    $batchSize = 99;
-                    $imeisChunks = array_chunk($deviceImeis, $batchSize);
-                    $apiData = [];
+                $batchSize = 99;
+                $apiData = [];
 
-                    foreach ($imeisChunks as $chunk) {
-                        $apiResponse = (new Jimi())->getDeviceLocation($chunk)['result'] ?? [];
-                        $apiData = array_merge($apiData, $apiResponse);
-                    }
-
-                    // Render and send HTML for this group immediately
-                    if (!empty($apiData)) {
-                        $view = view('live-view.append-group-device', compact('group', 'apiData', 'tractors'))->render();
-                        $html = ['group_id' => $group->id, 'html' => $view];
-                        echo "data: " . json_encode($html) . "\n\n"; // Send as Server-Sent Event (SSE)
-                        ob_flush();
-                        flush();
-                    } else {
-                        $view = '<div class="d-flex justify-content-between my-3">
-                                <div class="d-flex gap-2">No Data Found</div>
-                            </div>';
-                        $html = ['group_id' => $group->id, 'html' => $view];
-                        echo "data: " . json_encode($html) . "\n\n"; // Send as Server-Sent Event (SSE)
-                        ob_flush();
-                        flush();
-                    }
+                foreach (array_chunk($deviceImeis, $batchSize) as $chunk) {
+                    $apiResponse = (new Jimi())->getDeviceLocation($chunk)['result'] ?? [];
+                    $apiData = array_merge($apiData, $apiResponse);
                 }
 
-                echo "data: " . json_encode(['end' => true]) . "\n\n"; // Signal end
+                $view = !empty($apiData)
+                    ? view('live-view.append-group-device', compact('group', 'apiData', 'tractors'))->render()
+                    : '<div class="d-flex justify-content-between my-3"><div class="d-flex gap-2">No Data Found</div></div>';
+
+                echo "data: " . json_encode(['group_id' => $group->id, 'html' => $view]) . "\n\n";
                 ob_flush();
                 flush();
-            }, 200, [
-                'Content-Type' => 'text/event-stream',
-                'Cache-Control' => 'no-cache',
-                'Connection' => 'keep-alive',
-            ]);
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
+            }
+
+            echo "data: " . json_encode(['end' => true]) . "\n\n";
+            ob_flush();
+            flush();
+        }, 200, [
+            'Content-Type'  => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection'    => 'keep-alive',
+        ]);
+    } catch (Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
     }
+}
 
     public function markersData()
     {
