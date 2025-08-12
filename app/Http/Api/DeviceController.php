@@ -137,7 +137,6 @@ public function deviceLists(Request $request)
     try {
         $roleId = Auth::user()->role_id;
 
-        // ADMIN, SUB_ADMIN, GOVERNMENT
         if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
             $deviceQuery = Device::query();
 
@@ -159,7 +158,6 @@ public function deviceLists(Request $request)
 
                 $devices = $deviceQuery->latest('id')->get();
             } else {
-                // Devices not in selected group
                 $deviceIds = TractorGroup::when($request->group_id, function ($q) use ($request) {
                     return $q->where('id', '!=', $request->group_id);
                 })->pluck('device_ids')->toArray();
@@ -182,7 +180,7 @@ public function deviceLists(Request $request)
 
             $group = TractorGroup::get()->first(function ($group) use ($userId) {
                 $farmerIds = $group->farmer_ids ? $group->farmer_ids: [];
-                return in_array($userId, $farmerIds);
+                return in_array($userId, json_decode($farmerIds));
             });
 
             if ($group && !empty($group->device_ids)) {
