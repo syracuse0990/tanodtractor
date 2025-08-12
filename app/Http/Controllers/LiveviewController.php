@@ -14,13 +14,13 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use App\Services\JimiService;
+use App\Services\TrackSolidProService;
 
 class LiveviewController extends Controller
 {
-     private JimiService $jimiService;
+     private TrackSolidProService $jimiService;
 
-    public function __construct(JimiService $jimiService)
+    public function __construct(TrackSolidProService $jimiService)
     {
         $this->jimiService = $jimiService;
     }
