@@ -160,15 +160,17 @@ class UserController extends Controller
         // $jimiService->bindAppUser($emie_no, $user->id);
 
         $group_id = $request->group_id;
-
         $group = TractorGroup::findOrFail($group_id);
         $farmerIds = $group->farmer_ids ? json_decode($group->farmer_ids, true) : [];
+
         if (!is_array($farmerIds)) {
             $farmerIds = [];
         }
 
-        if (!in_array($user->id, $farmerIds)) {
-            $farmerIds[] = $user->id;
+        $userIdString = (string) $user->id;
+
+        if (!in_array($userIdString, $farmerIds)) {
+            $farmerIds[] = $userIdString;
         }
 
         $group->update([
