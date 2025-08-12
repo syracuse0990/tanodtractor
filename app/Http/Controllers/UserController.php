@@ -163,7 +163,7 @@ class UserController extends Controller
         $userIdString = (string) $user->id;
 
         TractorGroup::where('id', '!=', $group_id)->get()->each(function ($grp) use ($userIdString) {
-            $ids = $grp->farmer_ids ? $grp->farmer_ids : [];
+            $ids = $grp->farmer_ids ? json_decode($grp->farmer_ids, true) : [];
 
             if (!is_array($ids)) {
                 $ids = [];
@@ -171,7 +171,7 @@ class UserController extends Controller
 
             if (($key = array_search($userIdString, $ids)) !== false) {
                 unset($ids[$key]);
-                $grp->update(['farmer_ids' => json_encode(array_values($ids))]); // reindex array
+                $grp->update(['farmer_ids' => json_encode(array_values($ids))]); 
             }
         });
 
