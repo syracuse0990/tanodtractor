@@ -37,6 +37,7 @@ class TractorGroup extends Model
   protected $casts = [
         'device_ids' => 'array',
         'tractor_ids' => 'array',
+
     ];
 
   protected $perPage = 20;

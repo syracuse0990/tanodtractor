@@ -62,6 +62,15 @@
                                     </a>
                                 </div>
                             @endif
+                             @if (!in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]))
+                                <div class="accordion-body">
+                                    <a href="{{ route('tractors.tagging') }}"
+                                        class="{{ request()->is('tagging') ? 'active' : '' }}">
+                                        <i class="fa-solid fa-user-shield"></i>
+                                        <span>Tagging</span>
+                                    </a>
+                                </div>
+                            @endif
                             @if (!in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]))
                                 <div class="accordion-body">
                                     <a href="{{ route('pages.index') }}"

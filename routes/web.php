@@ -55,6 +55,8 @@ Route::middleware([
     Route::resource('issue-types', IssueTypeController::class);
     Route::get('/assign-tractors', [TractorController::class, 'assignIndex'])->name('tractors.assignIndex');
     Route::get('/assign-tractor', [TractorController::class, 'assignTractor'])->name('tractors.assignTractor');
+    Route::get('/tagging', [TractorController::class, 'tagging'])->name('tractors.tagging');
+    Route::post('/tag-unit', [TractorController::class, 'tagUnit'])->name('tractors.tagUnit');
 });
 
 Route::middleware([
