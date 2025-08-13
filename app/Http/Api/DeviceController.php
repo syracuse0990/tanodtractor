@@ -137,7 +137,7 @@ public function deviceLists(Request $request)
     try {
         $roleId = Auth::user()->role_id;
 
-        if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
+        if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT, User::ROLE_TECHNICIAN])) {
             $deviceQuery = Device::query();
 
             if ($request->allData) {
