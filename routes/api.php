@@ -105,6 +105,7 @@ Route::prefix('user')->name('user.')->group(function () {
 
         //User
         Route::post('/user-list', [UserController::class, 'index']);
+        Route::get('/farmers', [UserController::class, 'getFarmers']);
         Route::post('/user-detail', [UserController::class, 'show']);
         Route::post('/user-update', [UserController::class, 'update']);
         Route::post('/delete-user', [UserController::class, 'destroy']);

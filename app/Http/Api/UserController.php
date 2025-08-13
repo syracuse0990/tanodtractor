@@ -125,6 +125,14 @@ class UserController extends Controller
         }
     }
 
+   public function getFarmers(Request $request){
+        $users = User::where('role_id', User::ROLE_FARMER)
+            ->latest('id')
+            ->pluck('name', 'id');
+
+        return returnSuccessResponse('Farmer data retrieved successfully', $users);
+    }
+
     /**
      * Update the specified resource in storage.
      */
