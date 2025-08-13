@@ -52,7 +52,7 @@ class TractorController extends Controller
             throw new HttpResponseException(returnValidationErrorResponse($errorMessages[0]));
         }
         try {
-            if (in_array(Auth::user()->role_id, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
+            if (in_array(Auth::user()->role_id, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT, User::ROLE_TECHNICIAN])) {
                 if ($request->allData) {
                     $tractor = Tractor::query();
                     if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
