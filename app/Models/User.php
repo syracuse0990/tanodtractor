@@ -151,6 +151,19 @@ class User extends Authenticatable
         ];
     }
 
+//     public function tractorGroup()
+// {
+//     // This assumes one user belongs to one tractor group
+//     return $this->belongsTo(TractorGroup::class)
+//                 ->whereJsonContains('farmer_ids', $this->id);
+// }
+public function tractorGroups()
+{
+    // Use hasMany with a custom constraint
+    return $this->hasMany(TractorGroup::class)
+                ->whereRaw('JSON_CONTAINS(farmer_ids, ?)', ['"' . $this->id . '"']);
+}
+
     public function getStateLabel()
     {
         $list = [

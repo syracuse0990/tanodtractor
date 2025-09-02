@@ -166,4 +166,9 @@ class TractorGroup extends Model
     $farmerIds = json_decode($this->farmer_ids);
     return User::whereIn('id', $farmerIds)->get();
   }
+
+  public function scopeWhereContainsFarmer($query, $userId)
+{
+    return $query->whereJsonContains('farmer_ids', (string)$userId);
+}
 }

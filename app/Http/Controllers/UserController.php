@@ -299,19 +299,28 @@ class UserController extends Controller
             ->with('i', (request()->input('page', 1) - 1) * $users->perPage());
     }
 
-    public function technicians(Request $request){
-        $users = User::whereIn('role_id', [User::ROLE_TECHNICIAN])->orderBy('id', 'DESC');
+    public function technicians(Request $request)
+    {
+        $users = User::whereIn('role_id', [User::ROLE_TECHNICIAN])
+                    ->orderBy('id', 'DESC');
+
         $search = null;
         if ($request->search) {
             $search = $request->search;
-            $users =  $users->where(function (Builder $query) use ($search) {
+            $users = $users->where(function (Builder $query) use ($search) {
                 return $query->where('name', 'LIKE', '%' . $search . '%')
-                    ->orWhere('email', 'LIKE', '%' . $search . '%')->orWhere('phone', 'LIKE', '%' . $search . '%');
-            })->paginate();
-        } else {
-            $users = $users->paginate();
+                    ->orWhere('email', 'LIKE', '%' . $search . '%')
+                    ->orWhere('phone', 'LIKE', '%' . $search . '%');
+            });
         }
-        return view('user.index', compact('users', 'search'))
+
+        $users = $users->paginate();
+
+        $users->each(function ($user) {
+            $user->tractor_groups = TractorGroup::whereJsonContains('farmer_ids', (string)$user->id)->get();
+        });
+
+        return view('technicians.index', compact('users', 'search'))
             ->with('i', (request()->input('page', 1) - 1) * $users->perPage());
     }
 

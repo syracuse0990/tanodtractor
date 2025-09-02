@@ -1395,3 +1395,51 @@ textarea.form-control {
 .modal.show .modal-dialog {
     transform: none;
 }
+
+#usersTable_wrapper{
+    position: relative;
+    padding-top: 70px;
+    padding-bottom: 50px;
+}
+.dt-buttons{
+    position: absolute;
+    right: 0;
+    top: 7px;
+}
+.dt-buttons .btn{
+    border-left: 1px solid #fff;
+    color: #fff;
+}
+
+#usersTable_filter{
+    position: absolute;
+    left: 0;
+   width: 400px;
+   margin: 5px 0;
+   top: 5px;
+}
+#usersTable_filter label{
+    display: flex;
+    align-items: center;
+}
+#usersTable_filter label input{
+    margin-left: 10px;
+}
+
+#usersTable_info{
+    position: absolute;
+    width: 400px;
+    left: 0;
+    bottom: 0;
+}
+#usersTable_paginate{
+    position: absolute;
+    width: 600px;
+    right: 0;
+    bottom: 0;
+    display: flex;
+  justify-content: end;
+}
+#usersTable_paginate .pagination{
+    margin: 0;
+}

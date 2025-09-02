@@ -123,7 +123,7 @@ use App\Models\Device;
                 {!! $errors->first('role_id', '<div class="invalid-feedback">:message</div>') !!}
             </div>
         </div>
-        @if($user->role_id == USER::ROLE_FARMER)
+        @if($user->role_id == USER::ROLE_FARMER || $user->role_id == USER::ROLE_TECHNICIAN)
         <div class="col-md-6 mb-3">
             <div class="form-group">
                 {{ Form::label('group_id', 'Assign Group') }}
