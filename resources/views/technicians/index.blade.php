@@ -72,7 +72,7 @@
                                         <td>{{ $user->email }}</td>
                                         <td>{{ $user->phone }}</td>
                                         <td>{{ $user->getRole() }}</td>
-                                        <td>{{ $user->tractor_groups[0]['name'] }}</td>
+                                        <td>{{ optional($user->tractor_groups[0] ?? null)->name ?? '-' }}</td>
                                         <td>{!! $user->getStateLabel() !!}</td>
                                         <td class="text-center">
                                             @if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]))
