@@ -137,7 +137,7 @@ public function deviceLists(Request $request)
     try {
         $roleId = Auth::user()->role_id;
 
-        if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT, User::ROLE_TECHNICIAN])) {
+        if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
             $deviceQuery = Device::query();
 
             if ($request->allData) {
@@ -175,7 +175,7 @@ public function deviceLists(Request $request)
         }
 
         // FARMER
-        if ($roleId === User::ROLE_FARMER) {
+        if ($roleId === User::ROLE_FARMER || $roleId === User::ROLE_TECHNICIAN) {
             $userId = Auth::id();
 
             $group = TractorGroup::get()->first(function ($group) use ($userId) {

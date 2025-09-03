@@ -38,7 +38,7 @@
                                     value="{{ $search }}">
                             </div>
                         </form>
-                        @if (!request()->is('sub-admin') && !in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]) && !request()->is('technicians') && !in_array(Auth::user()->role_id, [User::ROLE_TECHNICIANS]))
+                        @if (!request()->is('sub-admin') && !in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]) && !request()->is('technicians') && !in_array(Auth::user()->role_id, [User::ROLE_TECHNICIAN]))
                             <div class="">
                                 <button class="btn btn-success" data-bs-toggle="modal"
                                     data-bs-target="#importUsersModal">Import</button>
