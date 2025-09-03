@@ -43,7 +43,7 @@ class DeviceController extends Controller
         }
         try {
 
-            if (in_array(Auth::user()->role_id, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT, User::ROLE_TECHNICIAN])) {
+            if (in_array(Auth::user()->role_id, [User::ROLE_ADMIN, User::ROLE_SUB_ADMIN, User::ROLE_GOVERNMENT])) {
                 if ($request->allData) {
                     $device = Device::query();
                     if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
@@ -96,7 +96,7 @@ class DeviceController extends Controller
                     }
                 }
                 return returnSuccessResponse('Get all device list successfully', $returnArrData);
-            } elseif (Auth::user()->role_id == User::ROLE_FARMER) {
+            } elseif (Auth::user()->role_id == User::ROLE_FARMER || Auth::user()->role_id == User::ROLE_TECHNICIAN) {
                 $currentUserGroup = $farmerGroup = null;
                 $user_id = Auth::user()->id;
                 $groups = TractorGroup::get();
