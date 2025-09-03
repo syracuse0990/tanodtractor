@@ -544,13 +544,13 @@ public function deviceLists(Request $request)
                 ->whereNotNull('activation_time');
 
             // Role-based filtering
-            if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_GOVERNMENT, User::ROLE_TECHNICIAN])) {
+            if (in_array($roleId, [User::ROLE_ADMIN, User::ROLE_GOVERNMENT])) {
                 $devices = $query->get();
             } elseif ($roleId == User::ROLE_SUB_ADMIN) {
                 $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
                 $deviceIds = TractorGroup::whereIn('id', $assignedGroups)->pluck('device_ids')->flatten()->unique()->toArray();
                 $devices = $query->whereIn('id', $deviceIds)->get();
-            } elseif ($roleId == User::ROLE_FARMER) {
+            } elseif ($roleId == User::ROLE_FARMER || $roleId == User::ROLE_TECHNICIAN) {
                 //$groupId = Tractor::where('farmer_id', $userId)->value('group_id');
                 $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)->first();
 
