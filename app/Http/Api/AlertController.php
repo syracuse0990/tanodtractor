@@ -64,6 +64,31 @@ class AlertController extends Controller
           'total_pages' => $total_pages
         ];
         return returnSuccessResponse('Get alerts list successfully', $returnArrData);
+      }elseif(Auth::user()->role_id == User::ROLE_TECHNICIAN){
+        $allData = Alert::query();
+        if ($request->alarm_type) {
+          $allData = $allData->where('alarm_type', $request->alarm_type);
+        }
+        if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
+          $groups = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
+          $deviceIds = [];
+          $deviceIds = $groups->pluck('device_ids')->flatten()->toArray();
+          $deviceIds = multiDimToSingleDim($deviceIds);
+          $imeis = Device::whereIn('id', $deviceIds)->pluck('imei_no')->toArray();
+          $allData = $allData->whereIn('imei', $imeis);
+        }
+        $allData = $allData->with('createdBy', 'deviceDetail')->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
+        $totalCount = $allData->total();
+        $total_pages = ceil($totalCount / $request->records_per_page);
+
+        $returnArrData = [
+          'alerts' => $allData->all(),
+          'page_no' => $request->page_no,
+          'total_entries' => $totalCount,
+          'total_pages' => $total_pages
+        ];
+        return returnSuccessResponse('Get alerts list successfully', $returnArrData);
+
       } elseif (Auth::user()->role_id == User::ROLE_FARMER) {
 
         $allData = Alert::where('user_id', Auth::user()->id);
