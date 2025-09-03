@@ -497,9 +497,15 @@ class JimiController extends Controller
         $deviceQuery = Device::query();
 
         // Restrict devices based on role
-        if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN, User::ROLE_TECHNICIAN])) {
+        if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
             $assignedGroups = AssignedGroup::where('user_id', Auth::id())->pluck('group_id')->toArray();
             $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
+            $deviceIds = multiDimToSingleDim($groups->pluck('device_ids')->toArray());
+            $deviceQuery->whereIn('id', $deviceIds);
+        }
+
+        if (in_array(Auth::user()->role_id, [User::ROLE_TECHNICIAN])) {
+            $groups = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
             $deviceIds = multiDimToSingleDim($groups->pluck('device_ids')->toArray());
             $deviceQuery->whereIn('id', $deviceIds);
         }
