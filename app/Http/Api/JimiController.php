@@ -488,7 +488,7 @@ class JimiController extends Controller
         try {
             $allDevices = $returnData = [];
             $deviceImeis = Device::query();
-            if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
+            if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN, User::ROLE_TECHNICIAN])) {
                 $assignedGroups = AssignedGroup::where('user_id', Auth::id())->pluck('group_id')->toArray();
                 $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
                 $deviceIds = $groups->pluck('device_ids')->flatten()->toArray();
