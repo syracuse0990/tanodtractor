@@ -474,67 +474,85 @@ class JimiController extends Controller
         }
     }
 
-    public function deviceList(Request $request)
-    {
-        $rules = [
-            'state' => 'required',
+   public function deviceList(Request $request)
+{
+    // Validate request
+    $validator = Validator::make($request->all(), [
+        'state' => 'required|in:' . implode(',', [
+            Device::ALL_DEVICES,
+            Device::ONLINE_DEVICES,
+            Device::OFFLINE_DEVICES
+        ]),
+    ]);
 
-        ];
-        $validator = Validator::make($request->all(), $rules);
-        if ($validator->fails()) {
-            $errorMessages = $validator->errors()->all();
-            throw new HttpResponseException(returnValidationErrorResponse($errorMessages[0]));
-        }
-        try {
-            $allDevices = $returnData = [];
-            $deviceImeis = Device::query();
-            if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN, User::ROLE_TECHNICIAN])) {
-                $assignedGroups = AssignedGroup::where('user_id', Auth::id())->pluck('group_id')->toArray();
-                $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
-                $deviceIds = $groups->pluck('device_ids')->flatten()->toArray();
-                $deviceIds = multiDimToSingleDim($deviceIds);
-                $deviceImeis = $deviceImeis->whereIn('id', $deviceIds);
-            }
-            $deviceImeis = $deviceImeis->pluck('imei_no')->toArray();
-            $imeis = is_array($deviceImeis) ? $deviceImeis : explode(',', $deviceImeis);
-            $apiData = (new Jimi())->getDeviceLocationList();
-            foreach ($apiData['result'] as $apiData) {
-                $deviceData = Device::query();
-                if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN, User::ROLE_TECHNICIAN])) {
-                    $assignedGroups = AssignedGroup::where('user_id', Auth::id())->pluck('group_id')->toArray();
-                    $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
-                    $deviceIds = $groups->pluck('device_ids')->flatten()->toArray();
-                    $deviceIds = multiDimToSingleDim($deviceIds);
-                    $deviceData = $deviceData->whereIn('id', $deviceIds);
-                }
-                $deviceData = $deviceData->where('imei_no', $apiData['imei'])->first();
-                if ($request->state == Device::ALL_DEVICES) {
-                    array_push($allDevices, $deviceData);
-                } elseif ($request->state == Device::ONLINE_DEVICES) {
-                    if ($apiData['status'] == Device::STATE_ACTIVE) {
-                        array_push($allDevices, $deviceData);
-                    }
-                } elseif ($request->state == Device::OFFLINE_DEVICES) {
-                    if ($apiData['status'] == Device::STATE_INACTIVE) {
-                        array_push($allDevices, $deviceData);
-                    }
-                }
-            }
-            foreach ($allDevices as $value) {
-                if (is_null($value)) {
-                    continue;
-                }
-                array_push($returnData, $value);
-            }
-
-            if (!$returnData) {
-                return response()->json(['statusCode' => 200, 'status' => 'success', 'message' => 'Get Device list successfully', 'data' => []], 200);
-            }
-            return returnSuccessResponse('Get Device list successfully', $returnData);
-        } catch (Exception $e) {
-            return  response()->json(['status' => false, 'message' => 'An error occurred:' . $e->getMessage(), 'data' => []]);
-        }
+    if ($validator->fails()) {
+        $errorMessages = $validator->errors()->all();
+        throw new HttpResponseException(returnValidationErrorResponse($errorMessages[0]));
     }
+
+    try {
+        $allDevices = [];
+
+        // Get base query
+        $deviceQuery = Device::query();
+
+        // Restrict devices based on role
+        if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN, User::ROLE_TECHNICIAN])) {
+            $assignedGroups = AssignedGroup::where('user_id', Auth::id())->pluck('group_id')->toArray();
+            $groups = TractorGroup::whereIn('id', $assignedGroups)->get();
+            $deviceIds = multiDimToSingleDim($groups->pluck('device_ids')->toArray());
+            $deviceQuery->whereIn('id', $deviceIds);
+        }
+
+        // Fetch devices and their IMEIs
+        $deviceImeis = $deviceQuery->pluck('imei_no')->toArray();
+
+        // Fetch API data
+        $apiData = (new Jimi())->getDeviceLocationList();
+
+        foreach ($apiData['result'] as $deviceInfo) {
+            // Skip devices not in allowed list
+            if (!in_array($deviceInfo['imei'], $deviceImeis)) {
+                continue;
+            }
+
+            // Find matching device
+            $deviceData = Device::where('imei_no', $deviceInfo['imei'])->first();
+            if (!$deviceData) {
+                continue;
+            }
+
+            // Apply state filter
+            switch ($request->state) {
+                case Device::ALL_DEVICES:
+                    $allDevices[] = $deviceData;
+                    break;
+
+                case Device::ONLINE_DEVICES:
+                    if ($deviceInfo['status'] == Device::STATE_ACTIVE) {
+                        $allDevices[] = $deviceData;
+                    }
+                    break;
+
+                case Device::OFFLINE_DEVICES:
+                    if ($deviceInfo['status'] == Device::STATE_INACTIVE) {
+                        $allDevices[] = $deviceData;
+                    }
+                    break;
+            }
+        }
+
+        return returnSuccessResponse('Get Device list successfully', $allDevices);
+
+    } catch (Exception $e) {
+        return response()->json([
+            'status' => false,
+            'message' => 'An error occurred: ' . $e->getMessage(),
+            'data' => []
+        ], 500);
+    }
+}
+
 
     public function getData(Request $request)
     {
