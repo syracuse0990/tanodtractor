@@ -405,6 +405,28 @@ class TractorController extends Controller
         return returnSuccessResponse('FCA tagging list retrieved successfully', $data);
     }
 
+    public function tractorListing(){
+         $group = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
+
+        if (!$group) {
+            return returnErrorResponse('No tractor group found for this user.');
+        }
+
+        $tractors = Tractor::whereIn('id', $group->tractor_ids)->get();
+
+        $data = [];
+
+        foreach($tractors as $item){
+            $data [] = [
+                'id' => $item->id,
+                'tractor_name' => $item->no_plate ?: $item->imei,
+            ];
+        }
+
+
+        return returnSuccessResponse('Tractor list retrieved successfully', $data);
+    }
+
     public function maintenanceTractorList(Request $request)
     {
         $rules = [

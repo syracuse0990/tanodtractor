@@ -104,6 +104,7 @@ Route::prefix('user')->name('user.')->group(function () {
 
         
         Route::get('/fca-lists', [TractorController::class, 'taggedData']);
+        Route::get('/tractor-listing', [TractorController::class, 'tractorListing']);
 
 
         //User
