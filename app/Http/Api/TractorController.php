@@ -391,7 +391,7 @@ class TractorController extends Controller
                 'group_id' => $item->group_id,
                 'group_name' => $item->group->name,
                 'user_id' => $item->user_id,
-                'user_name' => $item->user->name,
+                'user_name' => $item->user ? $item->user->name : 'Unknown',
                 'device_id' => $item->device_id,
                 'device_name' => $item->device->imei_no.' - '.$item->device->name,
                 'tractor_id' => $item->tractor_id,
