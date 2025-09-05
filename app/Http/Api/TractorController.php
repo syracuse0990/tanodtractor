@@ -373,12 +373,18 @@ class TractorController extends Controller
         }
     }
 
-    public function taggedData(){
-        $group = TractorGroup::whereJsonContains('farmer_ids', Auth::id())->first();
-        $history = TaggingHistory::where('group_id', $group->id)->get();
+    public function taggedData()
+{
+    $group = TractorGroup::whereRaw("FIND_IN_SET(?, farmer_ids)", [Auth::id()])->first();
 
-        return returnSuccessResponse('Get all fca tagging list successfully', $history);
+    if (!$group) {
+        return returnErrorResponse('No tractor group found for this user.');
     }
+
+    $history = TaggingHistory::where('group_id', $group->id)->get();
+
+    return returnSuccessResponse('FCA tagging list retrieved successfully', $history);
+}
 
     public function maintenanceTractorList(Request $request)
     {
