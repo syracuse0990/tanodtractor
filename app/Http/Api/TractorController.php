@@ -395,7 +395,7 @@ class TractorController extends Controller
                 'device_id' => $item->device_id,
                 'device_name' => $item->device->imei_no . (!empty($item->device->name) ? ' - ' . $item->device->name : ''),
                 'tractor_id' => $item->tractor_id,
-                'tractor_name' => $item->tractor->no_plate ?? $item->tractor->imei,
+                'tractor_name' => $item->tractor->no_plate ?: $item->tractor->imei,
             ];
         }
 
