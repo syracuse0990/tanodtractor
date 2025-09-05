@@ -374,7 +374,7 @@ class TractorController extends Controller
     }
 
     public function taggedData(){
-        $group = TractorGroup::whereIn('farmer_ids', Auth::id())->first();
+        $group = TractorGroup::whereJsonContains('farmer_ids', Auth::id())->first();
         $history = TaggingHistory::where('group_id', $group->id)->get();
 
         return returnSuccessResponse('Get all fca tagging list successfully', $history);
