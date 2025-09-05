@@ -318,6 +318,8 @@ class TractorController extends Controller
             ->with('i', (request()->input('page', 1) - 1) * $history->perPage());
     }
 
+  
+
     public function tagUnit(Request $request)
     {
         $request->validate([

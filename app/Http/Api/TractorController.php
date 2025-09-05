@@ -21,6 +21,7 @@ use App\Models\Notification;
 use App\Models\Tractor;
 use App\Models\TractorBooking;
 use App\Models\TractorGroup;
+use App\Models\TaggingHistory;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -370,6 +371,13 @@ class TractorController extends Controller
 
             return  response()->json(['status' => false, 'message' => 'An error occurred:' . $e->getMessage(), 'data' => []]);
         }
+    }
+
+    public function taggedData(){
+        $group = TractorGroup::whereIn('farmer_ids', Auth::id())->first();
+        $history = TaggingHistory::where('group_id', $group->id)->get();
+
+        return returnSuccessResponse('Get all fca tagging list successfully', $history);
     }
 
     public function maintenanceTractorList(Request $request)

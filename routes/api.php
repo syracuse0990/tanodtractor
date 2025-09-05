@@ -102,6 +102,9 @@ Route::prefix('user')->name('user.')->group(function () {
         Route::post('/update-password', [AuthController::class, 'updatePassword']);
         Route::post('/update-profile', [AuthController::class, 'updateProfile']);
 
+        
+        Route::get('/fca-lists', [TractorController::class, 'taggedData']);
+
 
         //User
         Route::post('/user-list', [UserController::class, 'index']);
