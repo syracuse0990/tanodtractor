@@ -382,9 +382,25 @@ class TractorController extends Controller
             return returnErrorResponse('No tractor group found for this user.');
         }
 
-        $history = TaggingHistory::where('group_id', $group->id)->get();
+        $history = TaggingHistory::with(['group', 'user', 'device', 'tractor'])->where('group_id', $group->id)->get();
 
-        return returnSuccessResponse('FCA tagging list retrieved successfully', $history);
+        $data = [];
+
+        foreach($history as $item){
+            $data [] = [
+                'group_id' => $item->group_id,
+                'group_name' => $item->group->name,
+                'user_id' => $item->user_id,
+                'user_name' => $item->user->name,
+                'device_id' => $item->device_id,
+                'device_name' => $item->device->imei_no.' - '.$item->device->name,
+                'tractor_id' => $item->tractor_id,
+                'tractor_name' => $item->tractor->no_plate ?? $item->tractor->imie,
+            ];
+        }
+
+
+        return returnSuccessResponse('FCA tagging list retrieved successfully', $data);
     }
 
     public function maintenanceTractorList(Request $request)
