@@ -388,6 +388,7 @@ class TractorController extends Controller
 
         foreach($history as $item){
             $data [] = [
+                'id' => $item->id,
                 'group_id' => $item->group_id,
                 'group_name' => $item->group->name,
                 'user_id' => $item->user_id,
