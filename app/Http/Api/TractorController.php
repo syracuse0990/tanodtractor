@@ -21,6 +21,7 @@ use App\Models\Notification;
 use App\Models\Tractor;
 use App\Models\TractorBooking;
 use App\Models\TractorGroup;
+use App\Models\TaggingHistory;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Exceptions\HttpResponseException;
