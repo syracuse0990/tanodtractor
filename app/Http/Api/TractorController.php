@@ -698,7 +698,7 @@ class TractorController extends Controller
             return returnErrorResponse('No tractor group found for this user.');
         }
 
-        $history = TaggingHistory::with(['group', 'user', 'device', 'tractor'])->where('group_id', $group->id)->get();
+        $history = TaggingHistory::with(['group', 'user', 'device', 'tractor'])->where('group_id', $group->id)->orderBy('created_at', 'DESC')->get();
 
         $data = [];
 
