@@ -12,6 +12,7 @@ use App\Models\Tractor;
 use App\Models\TractorBooking;
 use App\Models\TractorGroup;
 use App\Models\User;
+use App\Models\TaggingHistory;
 use Exception;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
