@@ -567,7 +567,7 @@ public function deviceLists(Request $request)
                 $devices = $query->whereIn('id', $deviceIds)->get();
             }else if($roleId == User::ROLE_FARMER){
 
-                $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)->first();
+                $group = TractorGroup::whereJsonContains('farmer_ids',  $userId)->first();
                 return returnSuccessResponse('TEST DATA', $group);
                 $history = TaggingHistory::where('group_id', $group->id)->where('user_id', $userId)->latest()->first();
                 $devices =  $query->where('id', $history->device_id)->get();
