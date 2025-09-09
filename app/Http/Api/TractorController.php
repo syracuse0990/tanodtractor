@@ -802,7 +802,6 @@ class TractorController extends Controller
                 'device_id' => $request->device_id,
             ]);
         }
-
-        return redirect()->back()->with('success', 'Tagging updated successfully.');
+         return returnSuccessResponse('Tagging updated successfully.', $group);
     }
 }
