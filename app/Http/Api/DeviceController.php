@@ -573,7 +573,7 @@ public function deviceLists(Request $request)
                         ->first();
 
                     if ($history) {
-                        $query->where('id', $history->device_id);
+                      $devices =  $query->where('id', $history->device_id);
                     }
                 }
 
