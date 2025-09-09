@@ -21,7 +21,6 @@ use App\Models\Notification;
 use App\Models\Tractor;
 use App\Models\TractorBooking;
 use App\Models\TractorGroup;
-use App\Models\TaggingHistory;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -373,60 +372,6 @@ class TractorController extends Controller
         }
     }
 
-    public function taggedData()
-    {
-        // $group = TractorGroup::whereRaw("FIND_IN_SET(?, farmer_ids)", [Auth::id()])->first();
-        $group = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
-
-        if (!$group) {
-            return returnErrorResponse('No tractor group found for this user.');
-        }
-
-        $history = TaggingHistory::with(['group', 'user', 'device', 'tractor'])->where('group_id', $group->id)->get();
-
-        $data = [];
-
-        foreach($history as $item){
-            $data [] = [
-                'id' => $item->id,
-                'group_id' => $item->group_id,
-                'group_name' => $item->group->name,
-                'user_id' => $item->user_id,
-                'user_name' => $item->user ? $item->user->name : 'Unknown',
-                'device_id' => $item->device_id,
-                'device_name' => $item->device->imei_no . (!empty($item->device->name) ? ' - ' . $item->device->name : ''),
-                'tractor_id' => $item->tractor_id,
-                'tractor_name' => $item->tractor->no_plate ?: $item->tractor->imei,
-                'date_tagged' => $item->created_at,
-            ];
-        }
-
-
-        return returnSuccessResponse('FCA tagging list retrieved successfully', $data);
-    }
-
-    public function tractorListing(){
-         $group = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
-
-        if (!$group) {
-            return returnErrorResponse('No tractor group found for this user.');
-        }
-
-        $tractors = Tractor::whereIn('id', $group->tractor_ids)->get();
-
-        $data = [];
-
-        foreach($tractors as $item){
-            $data [] = [
-                'id' => $item->id,
-                'tractor_name' => $item->no_plate ?: $item->imei,
-            ];
-        }
-
-
-        return returnSuccessResponse('Tractor list retrieved successfully', $data);
-    }
-
     public function maintenanceTractorList(Request $request)
     {
         $rules = [
@@ -741,5 +686,67 @@ class TractorController extends Controller
         } catch (Exception $e) {
             return  response()->json(['status' => false, 'message' => 'An error occurred:' . $e->getMessage(), 'data' => []]);
         }
+    }
+
+    public function tagFCA(Request $request)
+    {
+        $request->validate([
+            'fca_id'    => 'required',
+            'tractor_id' => 'required',
+            'device_id'  => 'required',
+        ]);
+
+        $technician_id = Auth::user()->id;
+        $group = TractorGroup::whereJsonContains('farmer_ids', $technician_id)->first();
+
+        TractorGroup::where('id', '!=', $group->id)->chunk(50, function ($groups) use ($request) {
+            foreach ($groups as $grp) {
+                $device_ids  = $grp->device_ids ?? [];
+                $tractor_ids = $grp->tractor_ids ?? [];
+                $farmer_ids  = json_decode($grp->farmer_ids, true) ?? [];
+
+                $device_ids  = array_values(array_diff($device_ids, [$request->device_id]));
+                $tractor_ids = array_values(array_diff($tractor_ids, [$request->tractor_id]));
+                $farmer_ids  = array_values(array_diff($farmer_ids, [$request->fca_id]));
+
+                $grp->device_ids  = $device_ids;
+                $grp->tractor_ids = $tractor_ids;
+                $grp->farmer_ids  = $farmer_ids;
+                $grp->save();
+            }
+        });
+
+        $group = TractorGroup::find($group->id);
+        if ($group) {
+            $device_ids  = $group->device_ids ?? [];
+            $tractor_ids = $group->tractor_ids ?? [];
+            $farmer_ids  = json_decode($group->farmer_ids, true) ?? [];
+
+            if (!in_array($request->device_id, $device_ids)) {
+                $device_ids[] = $request->device_id;
+            }
+
+            if (!in_array($request->tractor_id, $tractor_ids)) {
+                $tractor_ids[] = $request->tractor_id;
+            }
+
+            if (!in_array($request->fca_id, $farmer_ids)) {
+                $farmer_ids[] = $request->fca_id;
+            }
+
+            $group->device_ids  = $device_ids;
+            $group->tractor_ids = $tractor_ids;
+            $group->farmer_ids  = $farmer_ids;
+            $group->save();
+
+            TaggingHistory::create([
+                'group_id' => $group->id,
+                'user_id' => $request->fca_id,
+                'tractor_id' => $request->tractor_id,
+                'device_id' => $request->device_id,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Tagging updated successfully.');
     }
 }
