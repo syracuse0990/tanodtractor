@@ -568,7 +568,7 @@ public function deviceLists(Request $request)
             }else if($roleId == User::ROLE_FARMER){
 
                 $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)->first();
-                return returnSuccessResponse('Device list retrieved successfully.', $group);
+                return returnSuccessResponse('TEST DATA', $group);
                 $history = TaggingHistory::where('group_id', $group->id)->where('user_id', $userId)->latest()->first();
                 $devices =  $query->where('id', $history->device_id)->get();
 
