@@ -550,7 +550,7 @@ public function deviceLists(Request $request)
                 $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
                 $deviceIds = TractorGroup::whereIn('id', $assignedGroups)->pluck('device_ids')->flatten()->unique()->toArray();
                 $devices = $query->whereIn('id', $deviceIds)->get();
-            } elseif ($roleId == User::ROLE_FARMER || $roleId == User::ROLE_TECHNICIAN) {
+            } elseif ($roleId == User::ROLE_TECHNICIAN) {
                 //$groupId = Tractor::where('farmer_id', $userId)->value('group_id');
                 $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)->first();
 
@@ -564,6 +564,19 @@ public function deviceLists(Request $request)
 
                 $deviceIds = json_decode(json_encode($group->device_ids), true);
                 $devices = $query->whereIn('id', $deviceIds)->get();
+            }else if($roleId == User::ROLE_FARMER){
+                $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)->first();
+                if ($group) {
+                    $history = TaggingHistory::where('group_id', $group->id)
+                        ->where('user_id', $userId)
+                        ->latest()
+                        ->first();
+
+                    if ($history) {
+                        $query->where('id', $history->device_id);
+                    }
+                }
+
             } else {
                 return  response()->json(['status' => false, 'message' => 'Unauthorized access', 'data' => []]);
             }
