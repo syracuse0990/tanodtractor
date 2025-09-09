@@ -763,7 +763,7 @@ class TractorController extends Controller
 
                 $device_ids  = array_values(array_diff($device_ids, [$request->device_id]));
                 $tractor_ids = array_values(array_diff($tractor_ids, [$request->tractor_id]));
-                $farmer_ids  = array_values(array_diff($farmer_ids, [$request->fca_id]));
+                $farmer_ids  = array_values(array_diff($farmer_ids, [(string) $request->fca_id]));
 
                 $grp->device_ids  = $device_ids;
                 $grp->tractor_ids = $tractor_ids;
@@ -787,7 +787,7 @@ class TractorController extends Controller
             }
 
             if (!in_array($request->fca_id, $farmer_ids)) {
-                $farmer_ids[] = $request->fca_id;
+                $farmer_ids[] = (string)  $request->fca_id;
             }
 
             $group->device_ids  = $device_ids;
