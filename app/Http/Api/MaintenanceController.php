@@ -70,8 +70,8 @@ class MaintenanceController extends Controller
             'tech_name' => 'required',
             'tech_email' => 'required|email',
             'tech_number' => 'required|numeric',
-            'tech_iso_code' => 'required',
-            'tech_phone_code' => 'required'
+            // 'tech_iso_code' => 'required',
+            // 'tech_phone_code' => 'required'
         ];
 
         $validator = Validator::make($request->all(), $rules);
