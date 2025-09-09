@@ -688,7 +688,61 @@ class TractorController extends Controller
         }
     }
 
-    public function tagFCA(Request $request)
+    public function taggedData()
+    {
+        // $group = TractorGroup::whereRaw("FIND_IN_SET(?, farmer_ids)", [Auth::id()])->first();
+        $group = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
+
+        if (!$group) {
+            return returnErrorResponse('No tractor group found for this user.');
+        }
+
+        $history = TaggingHistory::with(['group', 'user', 'device', 'tractor'])->where('group_id', $group->id)->get();
+
+        $data = [];
+
+        foreach($history as $item){
+            $data [] = [
+                'id' => $item->id,
+                'group_id' => $item->group_id,
+                'group_name' => $item->group->name,
+                'user_id' => $item->user_id,
+                'user_name' => $item->user ? $item->user->name : 'Unknown',
+                'device_id' => $item->device_id,
+                'device_name' => $item->device->imei_no . (!empty($item->device->name) ? ' - ' . $item->device->name : ''),
+                'tractor_id' => $item->tractor_id,
+                'tractor_name' => $item->tractor->no_plate ?: $item->tractor->imei,
+                'date_tagged' => $item->created_at,
+            ];
+        }
+
+
+        return returnSuccessResponse('FCA tagging list retrieved successfully', $data);
+    }
+
+    public function tractorListing(){
+         $group = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
+
+        if (!$group) {
+            return returnErrorResponse('No tractor group found for this user.');
+        }
+
+        $tractors = Tractor::whereIn('id', $group->tractor_ids)->get();
+
+        $data = [];
+
+        foreach($tractors as $item){
+            $data [] = [
+                'id' => $item->id,
+                'tractor_name' => $item->no_plate ?: $item->imei,
+            ];
+        }
+
+
+        return returnSuccessResponse('Tractor list retrieved successfully', $data);
+    }
+
+      public function tagFCA(Request $request)
     {
         $request->validate([
             'fca_id'    => 'required',
@@ -696,8 +750,9 @@ class TractorController extends Controller
             'device_id'  => 'required',
         ]);
 
-        $technician_id = Auth::user()->id;
-        $group = TractorGroup::whereJsonContains('farmer_ids', $technician_id)->first();
+
+        $group = TractorGroup::whereJsonContains('farmer_ids', (string) Auth::id())->first();
+
 
         TractorGroup::where('id', '!=', $group->id)->chunk(50, function ($groups) use ($request) {
             foreach ($groups as $grp) {
