@@ -566,16 +566,16 @@ public function deviceLists(Request $request)
                 $devices = $query->whereIn('id', $deviceIds)->get();
             }else if($roleId == User::ROLE_FARMER){
                 $group = TractorGroup::whereJsonContains('farmer_ids', (string) $userId)->first();
-                if ($group) {
+
                     $history = TaggingHistory::where('group_id', $group->id)
                         ->where('user_id', $userId)
                         ->latest()
                         ->first();
 
-                    if ($history) {
-                      $devices =  $query->where('id', $history->device_id);
-                    }
-                }
+
+                      $devices =  $query->where('id', $history->device_id)->get();
+
+
 
             } else {
                 return  response()->json(['status' => false, 'message' => 'Unauthorized access', 'data' => []]);
