@@ -116,7 +116,7 @@ class TractorController extends Controller
                 }
                 $farmerGroup = $currentUserGroup;
                 if (!empty($farmerGroup->tractor_ids)) {
-                    $tractors = Tractor::with('images')->whereIn('id', json_decode($farmerGroup->tractor_ids, true))->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
+                    $tractors = Tractor::with('images')->whereIn('id', $farmerGroup->tractor_ids)->latest('id')->paginate($request->records_per_page, ['*'], 'page', $request->page_no);
                     $totalCount = $tractors->total();
                     $total_pages = ceil($totalCount / $request->records_per_page);
 
