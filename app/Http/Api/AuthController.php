@@ -79,9 +79,9 @@ class AuthController extends Controller
         }
         $userData = $request->all();
         $user = User::where('email', $request->email)->first();
-        if (empty($user)) {
-            return returnNotFoundResponse("User not found with this email.");
-        }
+        // if (empty($user)) {
+        //     return returnNotFoundResponse("User not found with this email.");
+        // }
         // if (empty($user->email_verification_otp)) {
         //     return returnErrorResponse("User already registered.");
         // }
