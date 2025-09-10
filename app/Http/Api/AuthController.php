@@ -69,7 +69,7 @@ class AuthController extends Controller
             'confirm_password' => 'required',
             'device_type' => 'required|boolean',
             // 'fcm_token' => 'required',
-            'otp' => 'required'
+            // 'otp' => 'required'
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -82,12 +82,12 @@ class AuthController extends Controller
         if (empty($user)) {
             return returnNotFoundResponse("User not found with this email.");
         }
-        if (empty($user->email_verification_otp)) {
-            return returnErrorResponse("User already registered.");
-        }
-        if ($user->email_verification_otp != $userData['otp']) {
-            return returnErrorResponse("Otp not matched.");
-        }
+        // if (empty($user->email_verification_otp)) {
+        //     return returnErrorResponse("User already registered.");
+        // }
+        // if ($user->email_verification_otp != $userData['otp']) {
+        //     return returnErrorResponse("Otp not matched.");
+        // }
         $user->name = $request->name;
         $user->password = Hash::make($userData['password']);
         $user->state_id = User::STATE_ACTIVE;
