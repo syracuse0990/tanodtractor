@@ -11,6 +11,7 @@ use App\Models\Image;
 use App\Models\Tractor;
 use App\Models\TractorBooking;
 use App\Models\TractorGroup;
+use App\Models\TaggingHistory;
 use App\Models\User;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Auth;
@@ -82,7 +83,7 @@ class FarmerFeedbackController extends Controller
             'name' => 'required',
             'email' => 'required|email',
             'issue_type_id' => 'required',
-            'tractor_id' => 'required',
+            // 'tractor_id' => 'required',
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -91,7 +92,15 @@ class FarmerFeedbackController extends Controller
             throw new HttpResponseException(returnValidationErrorResponse($errorMessages[0]));
         }
         try {
+            $userId = Auth::id();
+            $group = TractorGroup::where(function ($q) use ($userId) {
+                $q->whereJsonContains('farmer_ids', (string) $userId) // match string
+                ->orWhereJsonContains('farmer_ids', (int) $userId); // match int
+            })->first();
+            $history = TaggingHistory::where('group_id', $group->id)->where('user_id', $userId)->latest()->first();
+
             $farmerFeedbackData = $request->all();
+            $farmerFeedbackData['tractor_id'] = $history->tractor_id;
             $farmerFeedbackData['state_id'] = FarmerFeedback::STATE_ACTIVE;
             $farmerFeedback = FarmerFeedback::create($farmerFeedbackData);
             if ($request->file('path')) {
