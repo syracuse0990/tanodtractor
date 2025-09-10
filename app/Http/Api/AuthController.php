@@ -61,48 +61,87 @@ class AuthController extends Controller
      * @return object with user
      * This function use to user register
      */
-    public function register(Request $request, User $user)
-    {
-        $rules = [
-            'email' => 'required|email',
-            'password' => 'required',
-            'confirm_password' => 'required',
-            'device_type' => 'required|boolean',
-            // 'fcm_token' => 'required',
-            // 'otp' => 'required'
-        ];
+    // public function register(Request $request, User $user)
+    // {
+    //     $rules = [
+    //         'email' => 'required|email',
+    //         'password' => 'required',
+    //         'confirm_password' => 'required',
+    //         'device_type' => 'required|boolean',
+    //         // 'fcm_token' => 'required',
+    //         'otp' => 'required'
+    //     ];
 
-        $validator = Validator::make($request->all(), $rules);
-        if ($validator->fails()) {
-            $errorMessages = $validator->errors()->all();
-            throw new HttpResponseException(returnValidationErrorResponse($errorMessages[0]));
-        }
-        $userData = $request->all();
-        $user = User::where('email', $request->email)->first();
-        // if (empty($user)) {
-        //     return returnNotFoundResponse("User not found with this email.");
-        // }
-        // if (empty($user->email_verification_otp)) {
-        //     return returnErrorResponse("User already registered.");
-        // }
-        // if ($user->email_verification_otp != $userData['otp']) {
-        //     return returnErrorResponse("Otp not matched.");
-        // }
-        $user->name = $request->name;
-        $user->password = Hash::make($userData['password']);
-        $user->state_id = User::STATE_ACTIVE;
-        $user->role_id = User::ROLE_FARMER;
-        // $user->fcm_token = $userData['fcm_token'];
-        $user->email_verified_at = Carbon::now();
-        $user->email_verification_otp = null;
-        $user->save();
-        if ($request->file('profile_photo_path')) {
-            $path = $request->file('profile_photo_path')->store('image', 'public');
-            $user->profile_photo_path = $path;
-            $user->save();
-        }
-        return returnSuccessResponse('You are registered successfully.', $user->jsonResponse());
+    //     $validator = Validator::make($request->all(), $rules);
+    //     if ($validator->fails()) {
+    //         $errorMessages = $validator->errors()->all();
+    //         throw new HttpResponseException(returnValidationErrorResponse($errorMessages[0]));
+    //     }
+    //     $userData = $request->all();
+    //     $user = User::where('email', $request->email)->first();
+    //     if (empty($user)) {
+    //         return returnNotFoundResponse("User not found with this email.");
+    //     }
+    //     if (empty($user->email_verification_otp)) {
+    //         return returnErrorResponse("User already registered.");
+    //     }
+    //     if ($user->email_verification_otp != $userData['otp']) {
+    //         return returnErrorResponse("Otp not matched.");
+    //     }
+    //     $user->name = $request->name;
+    //     $user->password = Hash::make($userData['password']);
+    //     $user->state_id = User::STATE_ACTIVE;
+    //     $user->role_id = User::ROLE_FARMER;
+    //     // $user->fcm_token = $userData['fcm_token'];
+    //     $user->email_verified_at = Carbon::now();
+    //     $user->email_verification_otp = null;
+    //     $user->save();
+    //     if ($request->file('profile_photo_path')) {
+    //         $path = $request->file('profile_photo_path')->store('image', 'public');
+    //         $user->profile_photo_path = $path;
+    //         $user->save();
+    //     }
+    //     return returnSuccessResponse('You are registered successfully.', $user->jsonResponse());
+    // }
+
+    public function register(Request $request)
+{
+    $rules = [
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email',
+        'password' => 'required|min:6|confirmed', // Laravel expects "password_confirmation"
+        'device_type' => 'required|boolean',
+        // 'fcm_token' => 'required',
+        // 'otp' => 'required'
+    ];
+
+    $validator = Validator::make($request->all(), $rules);
+
+    if ($validator->fails()) {
+        $errorMessages = $validator->errors()->all();
+        throw new HttpResponseException(returnValidationErrorResponse($errorMessages[0]));
     }
+
+    $userData = $request->all();
+
+    $user = User::create([
+        'name' => $userData['name'],
+        'email' => $userData['email'],
+        'password' => Hash::make($userData['password']),
+        'state_id' => User::STATE_ACTIVE,
+        'role_id' => User::ROLE_FARMER,
+        'email_verified_at' => Carbon::now(),
+        'email_verification_otp' => null,
+    ]);
+
+    if ($request->hasFile('profile_photo_path')) {
+        $path = $request->file('profile_photo_path')->store('image', 'public');
+        $user->profile_photo_path = $path;
+        $user->save();
+    }
+
+    return returnSuccessResponse('You are registered successfully.', $user->jsonResponse());
+}
 
     /**
      * @var $request object of request class
