@@ -83,9 +83,9 @@ class TicketController extends Controller
           NotificationHelper::sendTicketNotification($fcm_token, $notificationData);
         }
       }
-      return returnSuccessResponse('Ticket created successfully.', $ticket);
+      return returnSuccessResponse('Ticket created successfully.', []);
     } catch (\Exception $e) {
-      return  response()->json(['status' => false, 'message' => 'An error occurred:' . $e->getMessage(), 'data' => (object)[]]);
+       return  response()->json(['status' => false, 'message' => 'An error occurred:' . $e->getMessage(), 'data' => []]);
     }
   }
 
