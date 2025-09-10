@@ -109,7 +109,8 @@ class AuthController extends Controller
     $rules = [
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email',
-        'password' => 'required|min:6|confirmed', // Laravel expects "password_confirmation"
+        'password' => 'required',
+        'confirm_password' => 'required',
         'device_type' => 'required|boolean',
         // 'fcm_token' => 'required',
         // 'otp' => 'required'
