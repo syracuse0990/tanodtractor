@@ -16,7 +16,7 @@
             @endif
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <div class="d-flex gap-3">
+                    <div class="d-flex w-100 gap-3 justify-content-between align-items-center">
                         <h3 class="card-title mb-0 fw-500">
                             {{ request()->is('sub-admin')
                                 ? 'Sub Admin' :
@@ -31,13 +31,13 @@
                         @endif
                     </div>
                     <div class="d-flex gap-2">
-                        <form id="searchForm" action="{{ route('users.index') }}" method="get">
+                        {{-- <form id="searchForm" action="{{ route('users.index') }}" method="get">
                             <div class="search-filter-box w-100">
                                 <input id="searchField" type="text" class="form-control form-control-sm"
                                     name="search" placeholder="search..." onchange="javascript:this.form.submit();"
                                     value="{{ $search }}">
                             </div>
-                        </form>
+                        </form> --}}
                         @if (!request()->is('sub-admin') && !in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]) && !request()->is('technicians') && !in_array(Auth::user()->role_id, [User::ROLE_TECHNICIAN]))
                             <div class="">
                                 <button class="btn btn-success" data-bs-toggle="modal"
@@ -54,8 +54,8 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                    <div class="table-responsive ">
+                        <table id="subadmin-table" class="table table-striped table-hover ">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -63,7 +63,6 @@
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Role</th>
-                                    {{-- <th>Gender</th> --}}
                                     <th>State</th>
                                     <th>Actions</th>
                                 </tr>
@@ -78,7 +77,6 @@
 
                                             <td>{{ $user->phone }}</td>
                                             <td>{{ $user->getRole() }}</td>
-                                            {{-- <td>{{ $user->getGender() }}</td> --}}
                                             <td>{!! $user->getStateLabel() !!}</td>
                                             <td class="action-btn">
                                                 @if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN]))
@@ -108,7 +106,7 @@
                                     @endforeach
                                 @else
                                     <tr>
-                                        <td colspan="15" class="text-center">No Records Found</td>
+                                        <td colspan="7" class="text-center">No Records Found</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -116,7 +114,7 @@
                     </div>
                 </div>
             </div>
-            {!! $users->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $users->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div> <!-- COL END -->
     </div>
     <!--Import User Modal -->
@@ -256,3 +254,36 @@
         </script>
     @endpush
 </x-app-layout>
+
+{{-- DataTables CSS --}}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+
+<script>
+$(document).ready(function() {
+    $('#subadmin-table').DataTable({
+        responsive: true,
+        pageLength: 10,
+        columnDefs: [
+            { orderable: false, targets: [0, 6] } // No & Actions not sortable
+        ],
+        order: [[1, 'asc']], // sort by Name
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search users..."
+        },
+        drawCallback: function(settings) {
+            let api = this.api();
+            api.column(0, { search: 'applied', order: 'applied' })
+               .nodes()
+               .each(function(cell, i) {
+                   cell.innerHTML = i + 1;
+               });
+        }
+    });
+});
+</script>

@@ -9,21 +9,21 @@ use App\Models\Tractor;
 $userCount = User::whereNotIn('role_id', [User::ROLE_ADMIN,User::ROLE_GOVERNMENT,User::ROLE_SYSTEM_ADMIN, User::ROLE_SUB_ADMIN])->count();
 $users = User::whereNotIn('role_id', [User::ROLE_ADMIN,User::ROLE_GOVERNMENT,User::ROLE_SYSTEM_ADMIN, User::ROLE_SUB_ADMIN])
 ->latest('id')
-->take(5)
+->take(10)
 ->get();
 $groupCount = TractorGroup::count();
 $tractorGroups = TractorGroup::latest('id')
-->take(5)
+->take(10)
 ->get();
 $bookingCount = 7; //TractorBooking::where('state_id', TractorBooking::STATE_ACTIVE)->count();
 $bookings = TractorBooking::where('state_id', TractorBooking::STATE_ACTIVE)
 ->latest('id')
-->take(5)
+->take(10)
 ->get();
 $feedbackCount = 2; //FarmerFeedback::where('state_id', TractorBooking::STATE_ACTIVE)->count();
 $farmerFeedbacks = FarmerFeedback::where('state_id', TractorBooking::STATE_ACTIVE)
 ->latest('id')
-->take(5)
+->take(10)
 ->get();
 
 $tractors = Tractor::where('state_id', 1)->count();
