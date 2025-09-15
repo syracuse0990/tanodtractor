@@ -33,7 +33,7 @@ use App\Models\DeviceGeoFence;
 
                 <div class="card-body">
                     <div class="table-responsive">
-                        <div>
+                        {{-- <div>
                             <div class="form-group mb-3">
                                 <select
                                     class="tractor_select form-control{{ $errors->has('tractor_id') ? ' is-invalid' : '' }}"
@@ -55,8 +55,8 @@ use App\Models\DeviceGeoFence;
                                 </select>
                                 {!! $errors->first('tractor_id', '<div class="invalid-feedback">:message</div>') !!}
                             </div>
-                        </div>
-                        <table class="table table-striped table-hover">
+                        </div> --}}
+                        <table id="booking-table" class="table table-striped table-hover">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -121,7 +121,7 @@ use App\Models\DeviceGeoFence;
                                 @endforeach
                                 @else
                                 <tr>
-                                    <td colspan="15" class="text-center">No Records Found</td>
+                                    <td colspan="7" class="text-center">No Records Found</td>
                                 </tr>
                                 @endif
                             </tbody>
@@ -129,17 +129,31 @@ use App\Models\DeviceGeoFence;
                     </div>
                 </div>
             </div>
-            {!! $bookings->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $bookings->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div> <!-- COL END -->
     </div>
     @push('js')
+    {{-- DataTables CSS --}}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
     <script>
+        $(document).ready(function() {
+        $('#booking-table').DataTable({
+            responsive: true,
+            pageLength: 10,
+            order: [[4, 'desc']], // sort by Date Tagged
+        });
         $('#tractor_select2').change(function() {
                 var url = $(this).val();
                 if (url) {
                     window.location = url;
                 }
                 return false;
+            });
             });
     </script>
     @endpush

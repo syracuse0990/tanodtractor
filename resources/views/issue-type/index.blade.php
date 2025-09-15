@@ -15,10 +15,11 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div class="d-flex justify-content-between">
                         <h3 class="card-title mb-0 fw-500 me-3">Issue Type</h3>
-                        <a href="{{ route('issue-types.create') }}"
+
+                    </div>
+                    <a href="{{ route('issue-types.create') }}"
                             class="btn btn-primary btn-icon text-white btn-sm rounded-pill px-3">
                             <i class="fa-regular fa-plus me-1"></i>Add</a>
-                    </div>
                     {{-- <form id="searchForm" action="{{ route('tractor-groups.index') }}" method="get">
                         <div class="search-filter-box w-100">
                             <input id="searchField" type="text" class="form-control form-control-sm" name ="search"
@@ -30,7 +31,7 @@
 
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table id="issue-table" class="table table-striped table-hover">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -71,7 +72,7 @@
                                     @endforeach
                                 @else
                                     <tr>
-                                        <td colspan="15" class="text-center">No Records Found</td>
+                                        <td colspan="5" class="text-center">No Records Found</td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -79,7 +80,23 @@
                     </div>
                 </div>
             </div>
-            {!! $issueTypes->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $issueTypes->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div> <!-- COL END -->
     </div>
 </x-app-layout>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+
+     $('#issue-table').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[4, 'desc']], // sort by Date Tagged
+    });
+});
+</script>

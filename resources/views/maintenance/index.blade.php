@@ -13,9 +13,18 @@ use App\Models\User;
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div class="d-flex justify-content-between">
                         <h3 class="card-title mb-0 fw-500 me-3">Maintenances</h3>
+
+                    </div>
+                    <div class="d-flex justify-content-end gap-3 align-items-start">
                         <a href="{{ route('maintenances.create') }}"
-                            class="btn btn-primary btn-icon text-white btn-sm rounded-pill px-3">
+                            class="btn btn-primary btn-icon text-white btn-sm px-3 py-2">
                             <i class="fa-regular fa-plus me-1"></i>Create</a>
+                        @if (!request()->is('sub-admin') && !in_array(Auth::user()->role_id,[User::ROLE_SUB_ADMIN]))
+                        <div class="">
+                            <button class="btn btn-success" data-bs-toggle="modal"
+                                data-bs-target="#importMaintenanceModal">Import</button>
+                        </div>
+                        @endif
                     </div>
                     {{-- <form id="searchForm" action="{{ route('tractor-groups.index') }}" method="get">
                         <div class="search-filter-box w-100">
@@ -27,18 +36,8 @@ use App\Models\User;
                 </div>
 
                 <div class="card-body">
-                    <div class="border-bottom">
-                        <div class="d-flex justify-content-end gap-3 mb-2 align-items-start">
-                            @if (!request()->is('sub-admin') && !in_array(Auth::user()->role_id,[User::ROLE_SUB_ADMIN]))
-                            <div class="">
-                                <button class="btn btn-success" data-bs-toggle="modal"
-                                    data-bs-target="#importMaintenanceModal">Import</button>
-                            </div>
-                            @endif
-                        </div>
-                    </div>
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table id="maintenance-table" class="table table-striped table-hover">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -102,7 +101,7 @@ use App\Models\User;
                                 @endforeach
                                 @else
                                 <tr>
-                                    <td colspan="15" class="text-center">No Records Found</td>
+                                    <td colspan="8" class="text-center">No Records Found</td>
                                 </tr>
                                 @endif
                             </tbody>
@@ -110,7 +109,7 @@ use App\Models\User;
                     </div>
                 </div>
             </div>
-            {!! $maintenances->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $maintenances->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div> <!-- COL END -->
     </div>
 
@@ -194,9 +193,15 @@ use App\Models\User;
         </div>
     </div>
     @endif
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     @push('js')
     <script>
+
+
         document.getElementById('playDemoBtn').addEventListener('click', function(e) {
             e.preventDefault(); // Prevent default behavior of the link
 
@@ -207,6 +212,11 @@ use App\Models\User;
             $('#videoModal').modal('show');
         });
         $('document').ready(function(){
+            $('#maintenance-table').DataTable({
+                responsive: true,
+                pageLength: 10,
+                order: [[4, 'desc']], // sort by Date Tagged
+            });
             $('#importForm').on('submit', function(e) {
                 e.preventDefault();
                 $("#overlay").fadeIn(300);
@@ -279,7 +289,7 @@ use App\Models\User;
                             console.log('response :>> ', response);
                         }
                     },
-                    
+
                 });
             }else{
                 alert('Something went wrong!!');

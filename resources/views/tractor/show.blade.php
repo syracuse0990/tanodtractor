@@ -339,7 +339,7 @@ use App\Models\User;
         $(document).ready(function(){
             maintenanceRequired();
         });
-        
+
         function maintenanceRequired(){
             var id = '{{$tractor->id}}';
             $.ajax({
@@ -355,7 +355,7 @@ use App\Models\User;
                 }
             }
 
-            })   
+            })
         }
     </script>
 </x-app-layout>

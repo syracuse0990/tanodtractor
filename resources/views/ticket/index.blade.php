@@ -30,7 +30,7 @@ use App\Models\Notification;
 
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table id="ticket-table" class="table table-striped table-hover">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -71,17 +71,33 @@ use App\Models\Notification;
                                     </td>
                                 </tr>
                                 @endforeach
-                                @else
+                                {{-- @else
                                 <tr>
-                                    <td colspan="15" class="text-center">No Records Found</td>
-                                </tr>
+                                    <td colspan="5" class="text-center">No Records Found</td>
+                                </tr> --}}
                                 @endif
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-            {!! $tickets->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $tickets->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div> <!-- COL END -->
     </div>
 </x-app-layout>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+
+     $('#ticket-table').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[4, 'desc']], // sort by Date Tagged
+    });
+});
+</script>

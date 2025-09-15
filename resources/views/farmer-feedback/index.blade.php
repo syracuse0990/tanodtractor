@@ -33,7 +33,7 @@
 
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table id="tractor-report-table" class="table table-striped table-hover">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -72,10 +72,10 @@
                                     </td>
                                 </tr>
                                 @endforeach
-                                @else
+                                {{-- @else
                                 <tr>
                                     <td colspan="15" class="text-center">No Records Found</td>
-                                </tr>
+                                </tr> --}}
                                 @endif
                             </tbody>
                         </table>
@@ -97,10 +97,26 @@
                     }else{
                         $('#download_csv').addClass('d-none');
                     }
-                }  
+                }
             })
         }
         var download =  setInterval(checkFile, 1000);
     </script>
     @endpush
 </x-app-layout>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+
+     $('#tractor-report-table').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[4, 'desc']], // sort by Date Tagged
+    });
+});
+</script>

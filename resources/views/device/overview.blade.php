@@ -87,18 +87,7 @@ use App\Helpers\CommonHelper;
                     <div class="d-flex justify-content-between">
                         <h3 class="card-title mb-0 fw-500 me-3">Overviews</h3>
                     </div>
-                    {{-- Search By Imei --}}
-                    <form id="searchForm" action="{{ route('devices.overview') }}" method="get">
-                        <div class="search-filter-box w-100">
-                            <input id="searchField" type="text" class="form-control form-control-sm" name="search"
-                                placeholder="IMEI" onchange="javascript:this.form.submit();"
-                                value="{{ isset(request()->search) ? request()->search : null }}">
-                        </div>
-                    </form>
-                </div>
-
-                <div class="card-body">
-                    <div class="d-flex justify-content-end gap-3 mb-4 align-items-start">
+                    <div class="d-flex justify-content-end gap-3 align-items-start">
                         <a href="{{ route('devices.exportOverview') }}" class="btn btn-success ms-2"
                             data-placement="left" id="export_btn">
                             {{ __('Export') }}
@@ -106,8 +95,20 @@ use App\Helpers\CommonHelper;
                         <a class="btn btn-success float-end d-none" id="download_csv"
                             href="{{ route('devices.download-export-device',['type_id'=>Export::TYPE_OVERVIEW]) }}">Download</a>
                     </div>
+                    {{-- Search By Imei --}}
+                    {{-- <form id="searchForm" action="{{ route('devices.overview') }}" method="get">
+                        <div class="search-filter-box w-100">
+                            <input id="searchField" type="text" class="form-control form-control-sm" name="search"
+                                placeholder="IMEI" onchange="javascript:this.form.submit();"
+                                value="{{ isset(request()->search) ? request()->search : null }}">
+                        </div>
+                    </form> --}}
+                </div>
+
+                <div class="card-body">
+
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table id="overview-table" class="table table-striped table-hover">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -151,10 +152,10 @@ use App\Helpers\CommonHelper;
                                     <td>{{$booking->kilometer}}</td>
                                 </tr>
                                 @endforeach
-                                @else
+                                {{-- @else
                                 <tr>
                                     <td colspan="15" class="text-center">No Records Found</td>
-                                </tr>
+                                </tr> --}}
                                 @endif
                             </tbody>
                         </table>
@@ -179,7 +180,7 @@ use App\Helpers\CommonHelper;
                     }else{
                         $('#download_csv').addClass('d-none');
                     }
-                }  
+                }
             })
         }
         var download =  setInterval(checkFile, 1000);
@@ -206,3 +207,19 @@ use App\Helpers\CommonHelper;
     </script>
     @endpush
 </x-app-layout>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+
+     $('#overview-table').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[4, 'desc']], // sort by Date Tagged
+    });
+});
+</script>

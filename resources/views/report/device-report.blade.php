@@ -153,7 +153,7 @@ $deviceList = $deviceList->latest('id')->get();
                     <div class="card-body">
 
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table id="report-analytics-table" class="table table-striped table-hover">
                                 <thead class="thead">
                                     <tr>
                                         <th>No</th>
@@ -191,10 +191,10 @@ $deviceList = $deviceList->latest('id')->get();
                                         <td>{{ $deviceData['lng'] }}</td>
                                     </tr>
                                     @endforeach
-                                    @else
+                                    {{-- @else
                                     <tr>
                                         <td colspan="15" class="text-center">No Records Found</td>
-                                    </tr>
+                                    </tr> --}}
                                     @endif
                                 </tbody>
                             </table>
@@ -207,6 +207,21 @@ $deviceList = $deviceList->latest('id')->get();
             </div> <!-- COL END -->
         </div>
     </section>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+    {{-- DataTables JS --}}
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+    $(document).ready(function() {
+
+        $('#report-analytics-table').DataTable({
+            responsive: true,
+            pageLength: 10,
+            order: [[4, 'desc']], // sort by Date Tagged
+        });
+    });
+    </script>
     @push('js')
     <script>
         $('#device_ids').multiselect({
@@ -279,7 +294,7 @@ $deviceList = $deviceList->latest('id')->get();
                     }else{
                         $('#download_pdf').addClass('d-none');
                     }
-                }  
+                }
             })
         }
         function checkCsv(){
@@ -298,7 +313,7 @@ $deviceList = $deviceList->latest('id')->get();
                     }else{
                         $('#download_csv').addClass('d-none');
                     }
-                }  
+                }
             })
         }
         var pdfExport = '{{isset($pdfExport) ? '1' : '0'}}';
