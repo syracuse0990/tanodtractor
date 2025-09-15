@@ -19,44 +19,44 @@ use App\Models\User;
                     <div class="d-flex justify-content-between">
                         <h3 class="card-title mb-0 fw-500 me-3">Tractors</h3>
                     </div>
-                    <form id="searchForm" action="{{ route('tractors.index') }}" method="get">
+                    <div class="d-flex justify-content-end gap-3 align-items-start">
+                        <form action="{{ route('tractors.export') }}" method="get"
+                            class="d-flex align-items-start tractor-multiselect-drop">
+                            @csrf
+                            <select class="w-100 hidden-select" id="tractor_ids" name="tractor_ids[]"
+                                autocomplete="tractor_ids" multiple>
+                                @foreach ($tractorList as $key => $value)
+                                @php
+                                $tractorName = $value ? $value?->id_no : null;
+                                if($tractorName && $value?->model){
+                                $tractorName = $value?->id_no . ' (' . $value?->model . ')';
+                                }
+                                @endphp
+                                <option value={{$value->id}}>{{$tractorName ?? $value?->no_plate }}</option>
+                                @endforeach
+                            </select>
+
+                            <button class="btn btn-success ms-2" type="submit">Export</button>
+                        </form>
+                        <button class="btn btn-success ms-2 import-button" type="btn">Import</button>
+                        <a class="btn btn-success float-end d-none" id="download_csv"
+                            href="{{ route('tractors.download') }}">Download</a>
+                    </div>
+
+                    {{-- <form id="searchForm" action="{{ route('tractors.index') }}" method="get">
                         <div class="search-filter-box w-100">
                             <input id="searchField" type="text" class="form-control form-control-sm" name="search"
                                 placeholder="search..." onchange="javascript:this.form.submit();"
                                 value="{{ isset($search) ? $search : null }}">
                         </div>
-                    </form>
+                    </form> --}}
                 </div>
 
                 <div class="card-body">
-                    <div class="border-bottom">
-                        <div class="d-flex justify-content-end gap-3 mb-2 align-items-start">
-                            <form action="{{ route('tractors.export') }}" method="get"
-                                class="d-flex align-items-start tractor-multiselect-drop">
-                                @csrf
-                                <select class="w-100 hidden-select" id="tractor_ids" name="tractor_ids[]"
-                                    autocomplete="tractor_ids" multiple>
-                                    @foreach ($tractorList as $key => $value)
-                                    @php
-                                    $tractorName = $value ? $value?->id_no : null;
-                                    if($tractorName && $value?->model){
-                                    $tractorName = $value?->id_no . ' (' . $value?->model . ')';
-                                    }
-                                    @endphp
-                                    <option value={{$value->id}}>{{$tractorName ?? $value?->no_plate }}</option>
-                                    @endforeach
-                                </select>
 
-                                <button class="btn btn-success ms-2" type="submit">Export</button>
-                            </form>
-                            <button class="btn btn-success ms-2 import-button" type="btn">Import</button>
-                            <a class="btn btn-success float-end d-none" id="download_csv"
-                                href="{{ route('tractors.download') }}">Download</a>
-                        </div>
-                    </div>
 
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table id="tractors-table" class="table table-striped table-hover">
                             <thead class="thead">
                                 <tr>
                                     <th>No</th>
@@ -76,7 +76,7 @@ use App\Models\User;
                                 @if (count($tractors))
                                 @foreach ($tractors as $tractor)
                                 <tr>
-                                    <td>{{ ++$i }}</td>
+                                    <td>{{ $tractor->id }}</td>
                                     <td>
                                         {{ $tractor->imei ?? 'N/A' }}
                                     </td>
@@ -109,17 +109,17 @@ use App\Models\User;
                                     </td>
                                 </tr>
                                 @endforeach
-                                @else
+                                {{-- @else
                                 <tr>
                                     <td colspan="15" class="text-center">No Records Found</td>
-                                </tr>
+                                </tr> --}}
                                 @endif
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
-            {!! $tractors->appends(request()->except('page'))->links('custom-pagination') !!}
+            {{-- {!! $tractors->appends(request()->except('page'))->links('custom-pagination') !!} --}}
         </div> <!-- COL END -->
     </div>
 
@@ -530,3 +530,18 @@ use App\Models\User;
     </script>
     @endpush
 </x-app-layout>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+{{-- DataTables JS --}}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+
+     $('#tractors-table').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[4, 'desc']], // sort by Date Tagged
+    });
+});
+</script>

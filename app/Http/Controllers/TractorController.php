@@ -61,7 +61,7 @@ class TractorController extends Controller
                     ->orWhere('brand', 'LIKE', '%' . $search . '%');
             });
         }
-        $tractors =  $tractors->paginate();
+        $tractors =  $tractors->get();
 
         $tractorList = Tractor::query();
         if (in_array(Auth::user()->role_id, [User::ROLE_SUB_ADMIN])) {
@@ -78,8 +78,8 @@ class TractorController extends Controller
             'created_by' => Auth::id(),
             'type_id' => Export::TYPE_TRACTOR
         ])->first();
-        return view('tractor.index', compact('tractors', 'search', 'tractorList', 'importInfo', 'exportInfo'))
-            ->with('i', (request()->input('page', 1) - 1) * $tractors->perPage());
+        return view('tractor.index', compact('tractors', 'search', 'tractorList', 'importInfo', 'exportInfo'));
+            // ->with('i', (request()->input('page', 1) - 1) * $tractors->perPage());
     }
 
     /**
@@ -318,7 +318,7 @@ class TractorController extends Controller
             ->with('i', (request()->input('page', 1) - 1) * $history->perPage());
     }
 
-  
+
 
     public function tagUnit(Request $request)
     {
