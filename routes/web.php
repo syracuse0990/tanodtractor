@@ -89,6 +89,7 @@ Route::middleware([
     Route::get('check-report', [ReportController::class, 'checkFile'])->name('reports.check-file');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/maintenance-reports', [ReportController::class, 'maintenanceReports'])->name('reports.maintenanceReports');
+    Route::get('/maintenance-reports/export-excel', [ReportController::class, 'exportMaintenanceExcel'])->name('reports.exportMaintenanceExcel');
     Route::get('/api-documentation', [ReportController::class, 'apiDocumentation'])->name('reports.apiDocumentation');
 
     Route::get('/device-reports', [ReportController::class, 'deviceReports'])->name('reports.deviceReports');

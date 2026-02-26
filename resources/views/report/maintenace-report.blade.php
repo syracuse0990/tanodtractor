@@ -22,7 +22,7 @@
                             <i class="fas fa-download me-1"></i> Export
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
+                            <li><a class="dropdown-item" href="{{ route('reports.exportMaintenanceExcel') }}"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
                         </ul>
                     </div>
@@ -40,7 +40,6 @@
                                 <th scope="col">IMEI</th>
                                 <th scope="col">Total Hours</th>
                                 <th scope="col">Total Distance (km)</th>
-
                                 <th scope="col">PMS Due</th>
                                 <th scope="col" class="text-end pe-4">Status</th>
                             </tr>
@@ -67,17 +66,15 @@
 
                                     <td>
                                         @if($device['needs_pms'])
-                                            <span class="badge bg-danger bg-opacity-10 text-danger">
-                                                <i class="fas fa-exclamation-circle me-1"></i> Due Now
+                                            <span class="badge bg-danger bg-opacity-10 text-white">
+                                                <i class="fas fa-exclamation-circle me-1 text-white"></i> Due Now
                                             </span>
                                         @else
                                             @php
                                                 $hoursLeft = 100 - $device['total_hours'];
-                                                $kmLeft = 1000 - $device['total_distance'];
-                                                $nextPms = min($hoursLeft, $kmLeft);
                                             @endphp
                                             <span class="badge bg-success bg-opacity-10 text-white">
-                                                <i class="fas fa-check-circle me-1"></i> {{ ceil($nextPms) }} left
+                                                <i class="fas fa-check-circle me-1"></i> {{ ceil($hoursLeft) }} hrs left
                                             </span>
                                         @endif
                                     </td>
@@ -95,7 +92,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-4">No devices found or data unavailable</td>
+                                    <td colspan="6" class="text-center py-4">No devices found or data unavailable.</td>
                                 </tr>
                             @endforelse
                         </tbody>

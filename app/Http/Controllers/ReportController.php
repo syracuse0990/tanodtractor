@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use App\Services\TrackSolidProService;
 use App\Services\JimiService;
+use App\Services\MaintenanceReportService;
+use App\Exports\MaintenanceReportExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 
 class ReportController extends Controller
@@ -255,68 +258,38 @@ class ReportController extends Controller
     // }
 public function maintenanceReports(Request $request)
 {
-
-
-    $jimiService = new JimiService();
-
-    $devicesResponse = $jimiService->getDeviceList();
-    $allDevices = $devicesResponse['result'] ?? [];
-
+    $service = new MaintenanceReportService();
+    $forceRefresh = $request->has('refresh');
+    $allData = $service->getMaintenanceData($forceRefresh);
 
     $page = $request->get('page', 1);
-    $perPage = 10;
-    $offset = ($page - 1) * $perPage;
-    $currentPageDevices = array_slice($allDevices, $offset, $perPage);
+    $perPage = 20;
+    $total = count($allData);
+    $items = array_slice($allData, ($page - 1) * $perPage, $perPage);
 
-    $startDate = \Carbon\Carbon::create(2023, 1, 1, 0, 0, 0)->format('Y-m-d H:i:s');
-    $endDate = now()->format('Y-m-d H:i:s');
-
-    $maintenanceData = [];
-
-    foreach ($currentPageDevices as $device) {
-        $mileageResponse = $jimiService->getDeviceMileage(
-            [$device['imei']],
-            $startDate,
-            $endDate
-        );
-
-        $totalHours = 0;
-        $totalDistance = 0;
-
-        if (isset($mileageResponse['result'])) {
-            foreach ($mileageResponse['result'] as $trip) {
-                $totalHours += $trip['runTimeSecond'] / 3600;
-                $totalDistance += $trip['distance'] / 1000;
-            }
-        }
-
-        $needsPms = $totalHours >= 100 || $totalDistance >= 1000;
-
-        $maintenanceData[] = [
-            'device_name' => $device['deviceName'],
-            'imei' => $device['imei'],
-            'total_hours' => round($totalHours, 2),
-            'total_distance' => round($totalDistance, 2),
-            'needs_pms' => $needsPms,
-            'status' => $device['status'] ?? 'unknown',
-            'last_active' => $device['hbTime'] ?? null,
-        ];
-    }
-
-    // Create paginator
-    $maintenanceDataPaginated = new \Illuminate\Pagination\LengthAwarePaginator(
-        $maintenanceData,
-        count($allDevices),
+    $maintenanceData = new LengthAwarePaginator(
+        $items,
+        $total,
         $perPage,
         $page,
-        [
-            'path' => $request->url(),
-            'query' => $request->query(),
-        ]
+        ['path' => $request->url(), 'query' => $request->query()]
     );
 
-    return view('report.maintenace-report', ['maintenanceData' => $maintenanceDataPaginated]);
+    return view('report.maintenace-report', ['maintenanceData' => $maintenanceData]);
 }
+
+    /**
+     * Export maintenance report to Excel.
+     */
+    public function exportMaintenanceExcel()
+    {
+        $service = new MaintenanceReportService();
+        $data = $service->getMaintenanceData();
+
+        $filename = 'Maintenance_Report_' . now()->format('Y-m-d_His') . '.xlsx';
+
+        return Excel::download(new MaintenanceReportExport($data), $filename);
+    }
 
     public function checkFile(Request $request)
     {
