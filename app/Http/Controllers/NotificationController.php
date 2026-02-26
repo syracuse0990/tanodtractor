@@ -17,6 +17,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class NotificationController extends Controller
 {
+    private const ALERT_FETCH_LIMIT = 100;
 
     public function __invoke() {}
 
@@ -25,7 +26,11 @@ class NotificationController extends Controller
 
         $response =  new StreamedResponse(function () {
             while (true) {
-                $notifications = Notification::where('user_id', Auth::id())->where('is_read', Notification::IS_NOT_READ)->latest('id')->get();
+                $notifications = Notification::where('user_id', Auth::id())
+                    ->where('is_read', Notification::IS_NOT_READ)
+                    ->latest('id')
+                    ->limit(self::ALERT_FETCH_LIMIT)
+                    ->get();
                 // $notifications = Notification::where('user_id', Auth::id())->where('is_read', Notification::IS_NOT_READ)->latest('id')->limit(10)->get();
 
                 if (!empty($notifications)) {
@@ -271,6 +276,7 @@ class NotificationController extends Controller
                 Notification::TYPE_INACTIVE
             ])
             ->latest('id')
+            ->limit(self::ALERT_FETCH_LIMIT)
             ->get();
 
         // Check if notifications exist

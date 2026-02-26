@@ -75,7 +75,7 @@ Route::middleware([
     Route::get('/composer-install-operation', [OperationController::class, 'composerInstall'])->name('settings.composerInstall');
 
     Route::get('/dashboard', function () {
-        return view('dashboard.index');
+        return view('dashboard.new-dashboard');
     })->name('dashboard');
     Route::get('/profile', function () {
         $user = Auth::user();
@@ -130,6 +130,7 @@ Route::middleware([
     Route::get('liveview/serach', [LiveviewController::class, 'search'])->name('liveview.search');
     Route::get('getDeviceWithState', [LiveviewController::class, 'getDeviceWithState'])->name('liveview.getDeviceWithState');
     Route::get('getDevicesCount', [LiveviewController::class, 'getDevicesCount'])->name('liveview.getDevicesCount');
+    Route::get('dashboardStats', [LiveviewController::class, 'dashboardStats'])->name('liveview.dashboardStats');
     Route::get('getFilteredDevices', [LiveviewController::class, 'getFilteredDevices'])->name('liveview.getFilteredDevices');
     Route::post('updateGroup', [LiveviewController::class, 'updateGroup'])->name('liveview.updateGroup');
     Route::resource('liveview', LiveviewController::class);
@@ -175,6 +176,7 @@ Route::middleware([
     Route::resource('pages', PageController::class);
 
     //Alert Routes
+    Route::get('alerts/current-month-stats', [AlertController::class, 'currentMonthStats'])->name('alerts.current-month-stats');
     Route::resource('alerts', AlertController::class);
 
     //Group Routes

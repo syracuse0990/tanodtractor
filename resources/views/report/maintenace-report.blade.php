@@ -59,26 +59,10 @@
                                     </td>
                                     <td><code>{{ $device['imei'] }}</code></td>
                                     <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-info " role="progressbar"
-                                                 style="width: {{ min(($device['total_hours'] / 100) * 100, 100) }}%"
-                                                 aria-valuenow="{{ $device['total_hours'] }}"
-                                                 aria-valuemin="0"
-                                                 aria-valuemax="100">
-                                               <span class="text-secondary">{{ $device['total_hours'] }} hrs</span>
-                                            </div>
-                                        </div>
+                                        <span class="text-secondary">{{ $device['total_hours'] }} hrs</span>
                                     </td>
                                     <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-warning text-gray-600" role="progressbar"
-                                                 style="width: {{ min(($device['total_distance'] / 1000) * 100, 100) }}%"
-                                                 aria-valuenow="{{ $device['total_distance'] }}"
-                                                 aria-valuemin="0"
-                                                 aria-valuemax="1000">
-                                                <span class="text-secondary">{{ $device['total_distance'] }} km</span>
-                                            </div>
-                                        </div>
+                                        <span class="text-secondary">{{ $device['total_distance'] }} km</span>
                                     </td>
 
                                     <td>

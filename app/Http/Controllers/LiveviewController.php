@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\AssignedGroup;
 use App\Models\Device;
 use App\Models\DeviceGeoFence;
+use App\Models\FarmerFeedback;
 use App\Models\Jimi;
+use App\Models\Maintenance;
 use App\Models\Tractor;
+use App\Models\TractorBooking;
 use App\Models\TractorGroup;
 use App\Models\User;
 use Carbon\Carbon;
@@ -600,6 +603,202 @@ class LiveviewController extends Controller
         ];
 
         return response()->json(['data' => $data]);
+    }
+
+    public function dashboardStats(Request $request)
+    {
+        $userId = Auth::id();
+        $roleId = Auth::user()->role_id;
+        $serial = trim((string) $request->get('serial', ''));
+        $groupId = $request->get('group_id');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+
+        $tractorQuery = Tractor::query();
+
+        if ($roleId == User::ROLE_SUB_ADMIN) {
+            $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+            $tractorQuery->whereIn('group_id', $assignedGroups);
+        }
+
+        if (!empty($groupId)) {
+            $tractorQuery->where('group_id', $groupId);
+        }
+
+        if (!empty($startDate)) {
+            $tractorQuery->whereDate('created_at', '>=', $startDate);
+        }
+        if (!empty($endDate)) {
+            $tractorQuery->whereDate('created_at', '<=', $endDate);
+        }
+
+        $tractorIds = (clone $tractorQuery)->pluck('id')->toArray();
+
+        $totalTractors = count($tractorIds);
+
+        $bookedTractorsQuery = TractorBooking::where('state_id', TractorBooking::STATE_ACTIVE);
+        if (!empty($tractorIds)) {
+            $bookedTractorsQuery->whereIn('tractor_id', $tractorIds);
+        } else {
+            $bookedTractorsQuery->whereRaw('1 = 0');
+        }
+        if (!empty($startDate)) {
+            $bookedTractorsQuery->whereDate('created_at', '>=', $startDate);
+        }
+        if (!empty($endDate)) {
+            $bookedTractorsQuery->whereDate('created_at', '<=', $endDate);
+        }
+        $bookedTractors = $bookedTractorsQuery->count();
+
+        $pmsTractorsQuery = Maintenance::whereIn('state_id', [
+            Maintenance::STATE_DOCUMENTATION,
+            Maintenance::STATE_FILLED,
+            Maintenance::STATE_INPROGRESS,
+        ]);
+        if (!empty($tractorIds)) {
+            $pmsTractorsQuery->whereIn('tractor_ids', $tractorIds);
+        } else {
+            $pmsTractorsQuery->whereRaw('1 = 0');
+        }
+        if (!empty($startDate)) {
+            $pmsTractorsQuery->whereDate('maintenance_date', '>=', $startDate);
+        }
+        if (!empty($endDate)) {
+            $pmsTractorsQuery->whereDate('maintenance_date', '<=', $endDate);
+        }
+        $pmsTractors = $pmsTractorsQuery->count();
+
+        $groupsQuery = TractorGroup::query();
+        if ($roleId == User::ROLE_SUB_ADMIN) {
+            $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+            $groupsQuery->whereIn('id', $assignedGroups);
+        }
+        if (!empty($groupId)) {
+            $groupsQuery->where('id', $groupId);
+        }
+        if ($serial !== '') {
+            if (!empty($tractorIds)) {
+                $groupIdsFromTractors = Tractor::whereIn('id', $tractorIds)->whereNotNull('group_id')->pluck('group_id')->unique()->toArray();
+                if (!empty($groupIdsFromTractors)) {
+                    $groupsQuery->whereIn('id', $groupIdsFromTractors);
+                } else {
+                    $groupsQuery->whereRaw('1 = 0');
+                }
+            } else {
+                $groupsQuery->whereRaw('1 = 0');
+            }
+        }
+        if (!empty($startDate)) {
+            $groupsQuery->whereDate('created_at', '>=', $startDate);
+        }
+        if (!empty($endDate)) {
+            $groupsQuery->whereDate('created_at', '<=', $endDate);
+        }
+        $groupsCount = $groupsQuery->count();
+
+        $feedbackQuery = FarmerFeedback::query();
+        if (!empty($tractorIds)) {
+            $feedbackQuery->whereIn('tractor_id', $tractorIds);
+        } else {
+            $feedbackQuery->whereRaw('1 = 0');
+        }
+        if (!empty($startDate)) {
+            $feedbackQuery->whereDate('created_at', '>=', $startDate);
+        }
+        if (!empty($endDate)) {
+            $feedbackQuery->whereDate('created_at', '<=', $endDate);
+        }
+        $feedbackCount = $feedbackQuery->count();
+
+        // Keep these three counters aligned with Live View device logic.
+        $onlineCount = 0;
+        $offlineCount = 0;
+        $inactiveCount = 0;
+
+        $devicesForCounts = Device::query();
+        if ($roleId == User::ROLE_SUB_ADMIN) {
+            $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+            $allowedDeviceIds = Tractor::whereIn('group_id', $assignedGroups)
+                ->whereNotNull('device_id')
+                ->pluck('device_id')
+                ->toArray();
+            $allowedDeviceIds = array_unique($allowedDeviceIds);
+            $devicesForCounts->whereIn('id', $allowedDeviceIds);
+        }
+
+        if (!empty($groupId)) {
+            $groupDeviceIds = Tractor::where('group_id', $groupId)
+                ->whereNotNull('device_id')
+                ->pluck('device_id')
+                ->toArray();
+            $devicesForCounts->whereIn('id', $groupDeviceIds);
+        }
+
+        if ($serial !== '') {
+            $serialDeviceIdsFromTractors = Tractor::where(function ($q) use ($serial) {
+                $q->where('id_no', 'LIKE', "%{$serial}%")
+                    ->orWhere('no_plate', 'LIKE', "%{$serial}%")
+                    ->orWhere('imei', 'LIKE', "%{$serial}%");
+            })->whereNotNull('device_id')->pluck('device_id')->toArray();
+
+            $devicesForCounts->where(function ($q) use ($serial, $serialDeviceIdsFromTractors) {
+                $q->where('imei_no', 'LIKE', "%{$serial}%")
+                    ->orWhere('device_name', 'LIKE', "%{$serial}%");
+                if (!empty($serialDeviceIdsFromTractors)) {
+                    $q->orWhereIn('id', $serialDeviceIdsFromTractors);
+                }
+            });
+        }
+
+        $filteredDeviceIds = (clone $devicesForCounts)->pluck('id')->toArray();
+
+        if (!empty($filteredDeviceIds)) {
+            $activeDevices = Device::whereIn('id', $filteredDeviceIds)
+                ->whereNotNull('activation_time')
+                ->get(['id', 'imei_no']);
+
+            $inactiveCount = Device::whereIn('id', $filteredDeviceIds)
+                ->whereNull('activation_time')
+                ->count();
+
+            $imeis = $activeDevices->pluck('imei_no')->filter()->toArray();
+            if (!empty($imeis)) {
+                $dateTime = now();
+                $gmtDate = gmdate('Y-m-d H:i:s', strtotime($dateTime));
+                $chunks = array_chunk($imeis, 99);
+
+                foreach ($chunks as $chunk) {
+                    $apiData = (new Jimi())->getDeviceLocation($chunk)['result'] ?? [];
+                    $apiData = array_column($apiData, null, 'imei');
+
+                    foreach ($chunk as $imei) {
+                        if (!isset($apiData[$imei])) {
+                            continue;
+                        }
+
+                        $status = (int) ($apiData[$imei]['status'] ?? 0);
+                        if ($status === 1) {
+                            $onlineCount++;
+                        } else {
+                            $offlineCount++;
+                        }
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'data' => [
+                'totalTractors' => $totalTractors,
+                'onlineCount' => $onlineCount,
+                'offlineCount' => $offlineCount,
+                'inactiveCount' => $inactiveCount,
+                'bookedTractors' => $bookedTractors,
+                'pmsTractors' => $pmsTractors,
+                'groupsCount' => $groupsCount,
+                'feedbackCount' => $feedbackCount,
+            ],
+        ]);
     }
 
     public function getFilteredDevices(Request $request)

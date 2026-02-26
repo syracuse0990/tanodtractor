@@ -1,6 +1,7 @@
 @php
     use App\Models\User;
     use App\Models\Notification;
+    use Illuminate\Support\Facades\Storage;
 
     $notifications = Notification::where('user_id', Auth::user()->id)
         ->where('is_read', Notification::IS_NOT_READ)
@@ -16,6 +17,8 @@
 
     <title>{{ !empty($attributes['title']) ? $attributes['title'] . ' - ' : '' }}{{ config('app.name', 'Laravel') }}
     </title>
+    <link rel="icon" type="image/png" href="{{ asset('assets/img/logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('assets/img/logo.png') }}">
 
     <!-- Font family -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -111,7 +114,11 @@
                     <a href="javascript:void(0);" class="nav-link p-0 d-flex align-items-center justify-content-start"
                         id="profileButton" data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="user_img1">
-                            @if (Auth::user()->profile_photo_path)
+                            @php
+                                $profilePhotoPath = Auth::user()->profile_photo_path;
+                                $hasProfilePhoto = !empty($profilePhotoPath) && Storage::disk('public')->exists($profilePhotoPath);
+                            @endphp
+                            @if ($hasProfilePhoto)
                                 <img src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}" alt="img">
                             @else
                                 <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyFmBCFfrKGnUCXabdJm-oQmQ-fwUU23HOrlYVKqbA1njKWnjVvMAcFhcPYEzXm_ehfNg&usqp=CAU"
