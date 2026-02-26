@@ -1,7 +1,7 @@
 @php
     use App\Models\User;
 @endphp
-<x-app-layout title="{{ request()->is('sub-admin') ? 'Sub Admin' : 'Farmer groups/Recepients' }}">
+<x-app-layout title="{{ request()->is('sub-admin') ? 'Sub Admin' : 'Tractor Groups' }}">
     <div class="row">
         <div class="col-12 col-sm-12">
             @if ($message = Session::get('success'))
@@ -18,7 +18,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div class="d-flex gap-3">
                         <h3 class="card-title mb-0 fw-500">
-                            {{ request()->is('sub-admin') ? 'Sub Admin' : 'Farmer groups/Recepients' }}
+                            {{ request()->is('sub-admin') ? 'Sub Admin' : 'Tractor Groups' }}
                         </h3>
                         @if (request()->is('sub-admin'))
                             <div>
@@ -50,46 +50,52 @@
                         @endif
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead class="thead">
+                <div class="card-body p-3 p-lg-4">
+                    <div class="table-responsive tractor-group-table-wrap">
+                        <table class="table table-hover align-middle mb-0 tractor-group-table">
+                            <thead class="table-light">
                                 <tr>
-                                    <th>No</th>
-                                    <th>Name</th>
-                                    <th class="text-center">List of members</th>
-                                    <th>State</th>
-                                    <th>Created By</th>
-                                    <th>Action</th>
+                                    <th class="text-nowrap">No</th>
+                                    <th>Group Name</th>
+                                    <th class="text-center text-nowrap">List of Members</th>
+                                    <th class="text-nowrap">State</th>
+                                    <th class="text-nowrap">Created By</th>
+                                    <th class="text-center text-nowrap">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @if (count($tractorGroups))
                                     @foreach ($tractorGroups as $tractorGroup)
                                         <tr>
-                                            <td>{{ ++$i }}</td>
+                                            <td class="text-muted fw-semibold">{{ ++$i }}</td>
 
-                                            <td>{{ $tractorGroup->name }}</td>
+                                            <td class="fw-semibold">{{ $tractorGroup->name }}</td>
                                             <td class="text-center">
                                                 <a href="{{ route('users.export-farmers', ['id' => $tractorGroup->id]) }}"
-                                                    class="text-dark">
-                                                    <i class="fa-solid fa-download"></i>
+                                                    class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                                    <i class="fa-solid fa-download me-1"></i>Export
                                                 </a>
                                             </td>
                                             <td>{!! $tractorGroup->getStateLabel() !!}</td>
-                                            <td>{{ $tractorGroup->createdBy?->name }}</td>
+                                            <td class="text-muted">{{ $tractorGroup->createdBy?->name ?? 'N/A' }}</td>
 
-                                            <td class="action-btn">
-                                                <a class="btn primary text-success btn-sm me-2 rounded-3"
-                                                href="{{ route('tractor-groups.show', $tractorGroup->id) }}"><i
-                                                    class="fa-solid fa-eye"></i></a>
-                                                
+                                            <td class="text-center action-btn">
+                                                <a class="btn btn-sm btn-outline-success rounded-circle d-inline-flex align-items-center justify-content-center view-btn"
+                                                    href="{{ route('tractor-groups.show', $tractorGroup->id) }}"
+                                                    title="View group">
+                                                    <i class="fa-solid fa-eye"></i>
+                                                </a>
                                             </td>
                                         </tr>
                                     @endforeach
                                 @else
                                     <tr>
-                                        <td colspan="15" class="text-center">No Records Found</td>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div class="text-muted d-inline-flex align-items-center gap-2">
+                                                <i class="fa-regular fa-folder-open"></i>
+                                                <span>No records found</span>
+                                            </div>
+                                        </td>
                                     </tr>
                                 @endif
                             </tbody>
@@ -152,6 +158,44 @@
             </div>
         </div>
     </div>
+    @push('css')
+        <style>
+            .tractor-group-table-wrap {
+                border-top: 1px solid #f1f3f7;
+                border-left: 1px solid #f1f3f7;
+                border-right: 1px solid #f1f3f7;
+                border-bottom: 1px solid #f1f3f7;
+                border-radius: 0.6rem;
+            }
+
+            .tractor-group-table thead th {
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0.02em;
+                color: #6c757d;
+                border-bottom: 1px solid #e9ecef;
+                padding: 1rem 1.2rem;
+                text-transform: uppercase;
+            }
+
+            .tractor-group-table tbody td {
+                padding: 1rem 1.2rem;
+                border-color: #f1f3f7;
+                vertical-align: middle;
+                line-height: 1.35;
+            }
+
+            .tractor-group-table tbody tr:hover {
+                background-color: #f8fafc;
+            }
+
+            .tractor-group-table .view-btn {
+                width: 30px;
+                height: 30px;
+                padding: 0;
+            }
+        </style>
+    @endpush
     @push('js')
         <script>
             document.getElementById('playDemoBtn').addEventListener('click', function(e) {
