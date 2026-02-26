@@ -67,6 +67,7 @@
             position: relative;
             overflow: hidden;
             min-height: 82px;
+            isolation: isolate;
         }
         .new-dashboard .stat-card::after {
             content: "";
@@ -89,6 +90,10 @@
             margin-top: 4px;
             font-size: 13px;
             opacity: 0.95;
+            line-height: 1.25;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
         }
         .new-dashboard .bg-total { background: linear-gradient(135deg, #2f3237, #4a4f56); }
         .new-dashboard .bg-online { background: linear-gradient(135deg, #0ba360, #3cba92); }
@@ -188,6 +193,31 @@
             font-size: 11px;
             font-weight: 600;
             color: #596273;
+        }
+
+        @media (max-width: 991.98px) {
+            .new-dashboard {
+                position: relative;
+                z-index: 0;
+            }
+
+            .new-dashboard .stat-card {
+                min-height: 90px;
+                padding: 12px 13px;
+            }
+
+            .new-dashboard .stat-value {
+                font-size: 22px;
+                line-height: 1.05;
+            }
+
+            .new-dashboard .stat-label {
+                font-size: 12px;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
         }
     </style>
 
