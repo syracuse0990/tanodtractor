@@ -526,8 +526,31 @@
                 }
 
                 const ctx = canvas.getContext('2d');
+                const alertCountLabelPlugin = {
+                    id: 'alertCountLabelPlugin',
+                    afterDatasetsDraw(chart) {
+                        const { ctx } = chart;
+                        const datasetMeta = chart.getDatasetMeta(0);
+                        const values = (chart.data.datasets[0] && chart.data.datasets[0].data) ? chart.data.datasets[0].data : [];
+
+                        ctx.save();
+                        ctx.font = '600 11px sans-serif';
+                        ctx.fillStyle = '#576171';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+
+                        datasetMeta.data.forEach((bar, index) => {
+                            const value = values[index] ?? 0;
+                            const y = Math.max(bar.y - 6, chart.chartArea.top + 14);
+                            ctx.fillText(String(value), bar.x, y);
+                        });
+
+                        ctx.restore();
+                    }
+                };
                 alertsStatisticsChart = new Chart(ctx, {
                     type: 'bar',
+                    plugins: [alertCountLabelPlugin],
                     data: {
                         labels: [],
                         datasets: [{
@@ -541,6 +564,11 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        layout: {
+                            padding: {
+                                top: 22
+                            }
+                        },
                         plugins: {
                             legend: {
                                 display: false
@@ -556,13 +584,19 @@
                                     font: {
                                         weight: '600'
                                     },
-                                    maxRotation: 0,
+                                    minRotation: 45,
+                                    maxRotation: 45,
                                     autoSkip: true,
-                                    maxTicksLimit: 10
+                                    callback: function(value) {
+                                        const label = this.getLabelForValue(value) || '';
+                                        const maxLabelLen = 16;
+                                        return label.length > maxLabelLen ? label.slice(0, maxLabelLen - 1) + '…' : label;
+                                    }
                                 }
                             },
                             y: {
                                 beginAtZero: true,
+                                grace: '20%',
                                 ticks: {
                                     precision: 0
                                 }

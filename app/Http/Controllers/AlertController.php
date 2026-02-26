@@ -91,18 +91,19 @@ class AlertController extends Controller
 
         $rows = $alerts
             ->whereBetween('alarm_time', [$startOfMonth, $endOfMonth])
-            ->selectRaw('alarm_type, COUNT(*) as total')
-            ->groupBy('alarm_type')
-            ->orderBy('alarm_type')
+            ->selectRaw('alarm_name, alarm_type, COUNT(*) as total')
+            ->groupBy('alarm_name', 'alarm_type')
+            ->orderBy('alarm_name')
             ->get();
 
         $alertTypes = Alert::alertOptions();
         $labels = [];
         $counts = [];
 
-        foreach ($rows as $type => $row) {
+        foreach ($rows as $row) {
             $alarmType = (int) $row->alarm_type;
-            $labels[] = $alertTypes[$alarmType] ?? ('Type ' . $alarmType);
+            $alarmName = trim((string) ($row->alarm_name ?? ''));
+            $labels[] = $alarmName !== '' ? $alarmName : ($alertTypes[$alarmType] ?? ('Type ' . $alarmType));
             $counts[] = (int) $row->total;
         }
 
