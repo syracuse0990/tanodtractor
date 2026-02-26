@@ -195,9 +195,9 @@
         <div class="dashboard-card bg-white p-3 p-lg-4">
             <div class="row g-2 dashboard-filter-row align-items-end">
                 <div class="col-md-6 col-lg-6">
-                    <label for="dashboard-filter-group" class="dashboard-filter-label">Farmer Group</label>
+                    <label for="dashboard-filter-group" class="dashboard-filter-label">Province</label>
                     <select id="dashboard-filter-group" class="form-select dashboard-filter-control">
-                        <option value="" {{ empty($selectedGroupId) ? 'selected' : '' }}>Filter by Group</option>
+                        <option value="" {{ empty($selectedGroupId) ? 'selected' : '' }}>Filter by Province</option>
                         @foreach ($groups as $group)
                             <option value="{{ $group->id }}" {{ $selectedGroupId === (int) $group->id ? 'selected' : '' }}>
                                 {{ $group->name }}

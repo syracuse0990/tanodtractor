@@ -73,41 +73,89 @@ class LiveviewController extends Controller
             }
             $groups = $groupsQuery->latest('id')->get();
 
-            // Fetch all device IDs in one query
-            $groupDeviceIds = $groups->pluck('device_ids')->map(function ($ids) {
+            // Fetch all device IDs in one query.
+            // Prefer actual tractor assignments because tractor_groups.device_ids can be stale.
+            $groupIds = $groups->pluck('id')->toArray();
+            $deviceIdsFromTractors = Tractor::whereIn('group_id', $groupIds)
+                ->whereNotNull('device_id')
+                ->pluck('device_id')
+                ->toArray();
+
+            $deviceIdsFromGroups = $groups->pluck('device_ids')->map(function ($ids) {
                 return $ids ?? [];
-            })->flatten()->unique()->toArray();
+            })->flatten()->toArray();
+
+            $groupDeviceIds = array_values(array_unique(array_merge($deviceIdsFromGroups, $deviceIdsFromTractors)));
 
             $allDevices = Device::whereIn('id', $groupDeviceIds)->get()->keyBy('id');
 
-            // Fetch all tractors in one query
-            $tractors = Tractor::whereIn('device_id', array_unique($groupDeviceIds))
-                ->get()
-                ->keyBy(fn($tractor) => "{$tractor->device_id}-{$tractor->group_id}");
+            // Precompute tractor-assigned device IDs per group to avoid N+1 queries in loop.
+            $tractorDevicesByGroup = Tractor::whereIn('group_id', $groupIds)
+                ->whereNotNull('device_id')
+                ->get(['group_id', 'device_id'])
+                ->groupBy('group_id')
+                ->map(function ($rows) {
+                    return $rows->pluck('device_id')->unique()->values()->toArray();
+                })
+                ->toArray();
+
+            // Pull live locations once (chunked) and reuse for all groups to reduce API load.
+            $allImeis = $allDevices->pluck('imei_no')->filter()->unique()->values()->toArray();
+            $apiDataByImei = [];
+            $apiErrorMessage = null;
+            foreach (array_chunk($allImeis, 99) as $chunk) {
+                $apiResponse = (new Jimi())->getDeviceLocation($chunk);
+                if (!is_array($apiResponse)) {
+                    $apiErrorMessage = 'Unable to fetch live data. Please try again.';
+                    continue;
+                }
+
+                $code = (int) ($apiResponse['code'] ?? 0);
+                if ($code !== 0 && $apiErrorMessage === null) {
+                    $apiErrorMessage = $apiResponse['message'] ?? 'Unable to fetch live data.';
+                }
+
+                $result = $apiResponse['result'] ?? [];
+                foreach ($result as $item) {
+                    $imei = $item['imei'] ?? null;
+                    if (!empty($imei)) {
+                        $apiDataByImei[$imei] = $item;
+                    }
+                }
+            }
 
             // Stream the response
-            return response()->stream(function () use ($groups, $allDevices, $tractors) {
+            return response()->stream(function () use ($groups, $allDevices, $tractorDevicesByGroup, $apiDataByImei, $apiErrorMessage) {
                 echo "data: " . json_encode(['start' => true]) . "\n\n"; // Signal start
                 ob_flush();
                 flush();
 
                 foreach ($groups as $group) {
-                    $deviceIds = $group->device_ids ? $group->device_ids : [];
+                    $deviceIdsFromGroup = $group->device_ids ? $group->device_ids : [];
+                    $deviceIdsFromTractor = $tractorDevicesByGroup[$group->id] ?? [];
+                    $deviceIds = !empty($deviceIdsFromTractor)
+                        ? $deviceIdsFromTractor
+                        : $deviceIdsFromGroup;
+                    $deviceIds = array_values(array_unique($deviceIds));
+
                     $deviceImeis = collect($deviceIds)->map(fn($id) => $allDevices[$id]->imei_no ?? null)->filter()->toArray();
-
-                    // Split IMEIs into chunks for API request
-                    $batchSize = 99;
-                    $imeisChunks = array_chunk($deviceImeis, $batchSize);
-                    $apiData = [];
-
-                    foreach ($imeisChunks as $chunk) {
-                        $apiResponse = (new Jimi())->getDeviceLocation($chunk)['result'] ?? [];
-                        $apiData = array_merge($apiData, $apiResponse);
-                    }
+                    $apiData = collect($deviceImeis)
+                        ->map(fn($imei) => $apiDataByImei[$imei] ?? null)
+                        ->filter()
+                        ->values()
+                        ->toArray();
 
                     // Render and send HTML for this group immediately
                     if (!empty($apiData)) {
-                        $view = view('live-view.append-group-device', compact('group', 'apiData', 'tractors'))->render();
+                        $view = view('live-view.append-group-device', compact('group', 'apiData'))->render();
+                        $html = ['group_id' => $group->id, 'html' => $view];
+                        echo "data: " . json_encode($html) . "\n\n"; // Send as Server-Sent Event (SSE)
+                        ob_flush();
+                        flush();
+                    } elseif (!empty($apiErrorMessage)) {
+                        $view = '<div class="d-flex justify-content-between my-3">
+                                <div class="d-flex gap-2 text-warning">' . e($apiErrorMessage) . '</div>
+                            </div>';
                         $html = ['group_id' => $group->id, 'html' => $view];
                         echo "data: " . json_encode($html) . "\n\n"; // Send as Server-Sent Event (SSE)
                         ob_flush();

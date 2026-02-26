@@ -6,6 +6,7 @@ use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Jimi extends Model
 {
@@ -58,7 +59,7 @@ class Jimi extends Model
         }
     }
 
-    public function getDeviceList()
+    public function getDeviceList(int $attempt = 0)
     {
         $date = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
@@ -90,21 +91,33 @@ class Jimi extends Model
             $client = new Client();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
-                'form_params' => $data
+                'form_params' => $data,
+                'connect_timeout' => 10,
+                'timeout' => 20,
             ]);
             $response_data = $res->getBody()->getContents();
             $response = json_decode($response_data, true);
-            return $response;
+            return is_array($response) ? $response : ['result' => []];
         } catch (Exception $e) {
-            if ($e->getCode() == 401) {
-                $this->getToken(true);
-                $this->getDeviceList();
+            $shouldRetry = $attempt < 1;
+            if ($e->getCode() == 401 && $shouldRetry) {
+                $this->getToken();
+                return $this->getDeviceList($attempt + 1);
             }
-            return $e->getMessage();
+
+            if ($shouldRetry) {
+                return $this->getDeviceList($attempt + 1);
+            }
+
+            return [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'result' => [],
+            ];
         }
     }
 
-    public function getDeviceDetail($imei)
+    public function getDeviceDetail($imei, int $attempt = 0)
     {
         $date = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
@@ -137,24 +150,34 @@ class Jimi extends Model
             $client = new Client();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
-                'form_params' => $data
+                'form_params' => $data,
+                'connect_timeout' => 10,
+                'timeout' => 20,
             ]);
             $response_data = $res->getBody()->getContents();
             $response = json_decode($response_data, true);
-            return $response;
+            return is_array($response) ? $response : ['result' => []];
         } catch (Exception $e) {
-            if ($e->getCode() == 401) {
-                $this->getToken(true);
-                $this->getDeviceDetail($imei);
+            $shouldRetry = $attempt < 1;
+            if ($e->getCode() == 401 && $shouldRetry) {
+                $this->getToken();
+                return $this->getDeviceDetail($imei, $attempt + 1);
             }
-            $response['code'] = $e->getCode();
-            $response['message'] = $e->getMessage();
-            return $response;
+
+            if ($shouldRetry) {
+                return $this->getDeviceDetail($imei, $attempt + 1);
+            }
+
+            return [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'result' => [],
+            ];
         }
     }
 
     //Get the latest location for all devices under an account
-    public function getDeviceLocationList()
+    public function getDeviceLocationList(int $attempt = 0)
     {
         $date = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
@@ -187,24 +210,40 @@ class Jimi extends Model
             $client = new Client();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
-                'form_params' => $data
+                'form_params' => $data,
+                'connect_timeout' => 10,
+                'timeout' => 20,
             ]);
             $status_code = $res->getStatusCode();
             $response_data = $res->getBody()->getContents();
             $response = json_decode($response_data, true);
-            return $response;
+            return is_array($response) ? $response : ['result' => []];
         } catch (Exception $e) {
-            if ($e->getCode() == 401) {
-                $this->getToken(true);
-                $this->getDeviceLocationList();
+            $shouldRetry = $attempt < 1;
+            if ($e->getCode() == 401 && $shouldRetry) {
+                $this->getToken();
+                return $this->getDeviceLocationList($attempt + 1);
             }
-            return $e->getMessage();
+
+            if ($shouldRetry) {
+                return $this->getDeviceLocationList($attempt + 1);
+            }
+
+            return [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'result' => [],
+            ];
         }
     }
 
     //Get current location
-    public function getDeviceLocation($imeis)
+    public function getDeviceLocation($imeis, int $attempt = 0)
     {
+        if (empty($imeis) || !is_array($imeis)) {
+            return ['result' => []];
+        }
+
         $date = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
         $user = User::where('role_id', User::ROLE_ADMIN)->first();
@@ -235,23 +274,41 @@ class Jimi extends Model
             $client = new Client();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
-                'form_params' => $data
+                'form_params' => $data,
+                'connect_timeout' => 10,
+                'timeout' => 20,
             ]);
             $status_code = $res->getStatusCode();
             $response_data = $res->getBody()->getContents();
             $response = json_decode($response_data, true);
-            return $response;
+            return is_array($response) ? $response : ['result' => []];
         } catch (Exception $e) {
-            if ($e->getCode() == 401) {
-                $this->getToken(true);
-                $this->getDeviceLocation($imeis);
+            $shouldRetry = $attempt < 1;
+            if ($e->getCode() == 401 && $shouldRetry) {
+                $this->getToken();
+                return $this->getDeviceLocation($imeis, $attempt + 1);
             }
-            $this->getDeviceLocation($imeis);
-            return $e->getMessage();
+
+            if ($shouldRetry) {
+                return $this->getDeviceLocation($imeis, $attempt + 1);
+            }
+
+            Log::warning('Jimi getDeviceLocation failed', [
+                'attempts' => $attempt + 1,
+                'imei_count' => count($imeis),
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'result' => [],
+            ];
         }
     }
 
-    public function getSharingLocationUrl($imei)
+    public function getSharingLocationUrl($imei, int $attempt = 0)
     {
         $date = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
@@ -282,19 +339,31 @@ class Jimi extends Model
             $client = new Client();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
-                'form_params' => $data
+                'form_params' => $data,
+                'connect_timeout' => 10,
+                'timeout' => 20,
             ]);
             $status_code = $res->getStatusCode();
             $response_data = $res->getBody()->getContents();
 
             $response = json_decode($response_data, true);
-            return $response;
+            return is_array($response) ? $response : ['result' => []];
         } catch (Exception $e) {
-            if ($e->getCode() == 401) {
-                $this->getToken(true);
-                $this->getSharingLocationUrl($imei);
+            $shouldRetry = $attempt < 1;
+            if ($e->getCode() == 401 && $shouldRetry) {
+                $this->getToken();
+                return $this->getSharingLocationUrl($imei, $attempt + 1);
             }
-            return $e->getMessage();
+
+            if ($shouldRetry) {
+                return $this->getSharingLocationUrl($imei, $attempt + 1);
+            }
+
+            return [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'result' => [],
+            ];
         }
     }
 
@@ -346,7 +415,7 @@ class Jimi extends Model
         }
     }
     // $page_size = 20, $start_row = 1
-    public function getDeviceMilage($imeis, $begin_time, $end_time)
+    public function getDeviceMilage($imeis, $begin_time, $end_time, int $attempt = 0)
     {
         $date = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
@@ -381,25 +450,37 @@ class Jimi extends Model
             $client = new Client();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
-                'form_params' => $data
+                'form_params' => $data,
+                'connect_timeout' => 10,
+                'timeout' => 20,
             ]);
             $status_code = $res->getStatusCode();
             $response_data = $res->getBody()->getContents();
 
             $response = json_decode($response_data, true);
-            return $response;
+            return is_array($response) ? $response : ['result' => []];
         } catch (Exception $e) {
-            if ($e->getCode() == 401) {
-                $this->getToken(true);
-                $this->getDeviceMilage($imeis, $begin_time, $end_time);
+            $shouldRetry = $attempt < 1;
+            if ($e->getCode() == 401 && $shouldRetry) {
+                $this->getToken();
+                return $this->getDeviceMilage($imeis, $begin_time, $end_time, $attempt + 1);
             }
-            return $e->getMessage();
+
+            if ($shouldRetry) {
+                return $this->getDeviceMilage($imeis, $begin_time, $end_time, $attempt + 1);
+            }
+
+            return [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'result' => [],
+            ];
         }
     }
 
     // Get historical data
     // Get device track data of not more than 2 days, within 3 months. 
-    public function getDeviceTrackData($imei, $begin_time, $end_time)
+    public function getDeviceTrackData($imei, $begin_time, $end_time, int $attempt = 0)
     {
         $date = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($date));
@@ -431,25 +512,31 @@ class Jimi extends Model
             $client = new Client();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
-                'form_params' => $data
+                'form_params' => $data,
+                'connect_timeout' => 10,
+                'timeout' => 20,
             ]);
             $status_code = $res->getStatusCode();
             $response_data = $res->getBody()->getContents();
 
             $response = json_decode($response_data, true);
-            return $response;
+            return is_array($response) ? $response : ['result' => []];
         } catch (Exception $e) {
-             if ($e->getCode() == 401) {
-                $this->getToken(true);
-                $this->getDeviceTrackData($imei, $begin_time, $end_time);
+            $shouldRetry = $attempt < 1;
+            if ($e->getCode() == 401 && $shouldRetry) {
+                $this->getToken();
+                return $this->getDeviceTrackData($imei, $begin_time, $end_time, $attempt + 1);
             }
-            if ($e->getCode() == 500) {
-                return [
-                    'code' => 500,
-                    'message' => $e->getMessage()
-                ];
+
+            if ($shouldRetry) {
+                return $this->getDeviceTrackData($imei, $begin_time, $end_time, $attempt + 1);
             }
-            return $e->getMessage();
+
+            return [
+                'code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'result' => [],
+            ];
         }
     }
 
