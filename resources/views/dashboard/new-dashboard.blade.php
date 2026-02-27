@@ -543,6 +543,11 @@
     </div>
 
     @push('js')
+        <script>
+            // Dashboard: disable realtime polling; manual reload/filter is enough.
+            window.liveviewRefreshIntervalMs = 60000;
+            window.liveviewAutoRefreshEnabled = false;
+        </script>
         @include('live-view.index-script')
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script>
@@ -728,47 +733,41 @@
                 initAlertsChart();
                 updateDashboardKpis();
                 updateAlertsStatisticsGraph(appliedDashboardFilters);
-                setInterval(function() {
-                    updateDashboardKpis(appliedDashboardFilters);
-                }, 15000);
-                setInterval(function() {
-                    updateAlertsStatisticsGraph(appliedDashboardFilters);
-                }, 60000);
 
                 $('#dashboard-filter-apply').on('click', function() {
-                    const $button = $(this);
                     appliedDashboardFilters = getDashboardFilters();
-                    setButtonLoading($button, true);
+                    const query = new URLSearchParams();
+                    if (appliedDashboardFilters.group_id) {
+                        query.set('group_id', appliedDashboardFilters.group_id);
+                    }
+                    if (appliedDashboardFilters.start_date) {
+                        query.set('start_date', appliedDashboardFilters.start_date);
+                    }
+                    if (appliedDashboardFilters.end_date) {
+                        query.set('end_date', appliedDashboardFilters.end_date);
+                    }
 
-                    $.when(
-                        updateDashboardKpis(appliedDashboardFilters),
-                        updateAlertsStatisticsGraph(appliedDashboardFilters)
-                    ).always(function() {
-                        setButtonLoading($button, false);
-                    });
+                    const queryString = query.toString();
+                    window.location.href = queryString ? "{{ route('dashboard') }}?" + queryString : "{{ route('dashboard') }}";
                 });
 
                 $('#dashboard-filter-clear').on('click', function() {
-                    const $button = $(this);
-                    clearDashboardFilters();
-                    appliedDashboardFilters = getDashboardFilters();
-                    setButtonLoading($button, true);
-
-                    $.when(
-                        updateDashboardKpis(appliedDashboardFilters),
-                        updateAlertsStatisticsGraph(appliedDashboardFilters)
-                    ).always(function() {
-                        setButtonLoading($button, false);
-                    });
+                    window.location.href = "{{ route('dashboard') }}";
                 });
 
                 // Keep this scoped to dashboard: once map instance is ready, switch to satellite.
-                const satelliteTimer = setInterval(function() {
+                (function applySatelliteWhenReady(attemptsLeft = 20) {
                     if (typeof maps !== 'undefined' && maps['map']) {
                         maps['map'].setMapTypeId('satellite');
-                        clearInterval(satelliteTimer);
+                        return;
                     }
-                }, 400);
+                    if (attemptsLeft <= 0) {
+                        return;
+                    }
+                    setTimeout(function() {
+                        applySatelliteWhenReady(attemptsLeft - 1);
+                    }, 400);
+                })();
             });
         </script>
     @endpush
