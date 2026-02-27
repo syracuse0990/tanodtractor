@@ -5,8 +5,6 @@ namespace App\Services;
 use App\Models\User;
 use Exception;
 use GuzzleHttp\Client;
-use GuzzleHttp\Pool;
-use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -36,8 +34,8 @@ class MaintenanceReportService
     private const USER_PWD_MD5 = 'f0f560f1b1be459ffc8ce6979fe7979d';
     private const TOKEN_EXPIRY_HOURS = 2;
 
-    /** Max concurrent API requests */
-    private const CONCURRENCY = 5;
+    /** IMEIs per batch — balances truncation risk vs total API calls */
+    private const BATCH_SIZE = 50;
 
     /** Cache duration in minutes */
     private const CACHE_MINUTES = 30;
@@ -70,7 +68,7 @@ class MaintenanceReportService
         }
 
         return Cache::remember($cacheKey, now()->addMinutes(self::CACHE_MINUTES), function () {
-            set_time_limit(300);
+            set_time_limit(0); // Unlimited — API calls for ~120 devices across multiple windows take time
 
             // Step 1: Get ALL devices with status, hbTime, currentMileage in ONE call
             $deviceMap = $this->fetchAllDevicesWithLocation();
@@ -147,11 +145,34 @@ class MaintenanceReportService
         // Build 365-day sliding windows from 2023-01-01 to now
         $windows = $this->buildDateWindows();
 
-        $imeis = array_keys($deviceMap);
+        // Small batches of 10 IMEIs to avoid result[] truncation (API cap = 100 records)
+        $batches = array_chunk(array_keys($deviceMap), self::BATCH_SIZE);
+        $batchCount = count($batches);
+        $windowCount = count($windows);
+
+        Log::info("MaintenanceReportService: {$batchCount} batches × {$windowCount} windows = " . ($batchCount * $windowCount) . " API calls for " . count($deviceMap) . " devices");
+
+        $rateLimited = false;
 
         foreach ($windows as $wi => $window) {
-            Log::info("MaintenanceReportService: Window " . ($wi + 1) . "/" . count($windows) . ": {$window['start']} to {$window['end']}");
-            $this->fetchMileageWindowConcurrent($imeis, $window['start'], $window['end'], $totals);
+            if ($rateLimited) break;
+
+            Log::info("MaintenanceReportService: Window " . ($wi + 1) . "/{$windowCount}: {$window['start']} to {$window['end']}");
+
+            foreach ($batches as $bi => $batch) {
+                $status = $this->fetchMileageBatch($batch, $window['start'], $window['end'], $totals);
+
+                if ($status === 'rate_limited') {
+                    Log::error("MaintenanceReportService: Daily API quota exceeded — aborting. Hours data will be incomplete.");
+                    $rateLimited = true;
+                    break;
+                }
+
+                // Rate-limit protection: 0.5s delay between batches
+                if ($bi < $batchCount - 1) {
+                    usleep(500000);
+                }
+            }
         }
 
         return $totals;
@@ -187,63 +208,58 @@ class MaintenanceReportService
     }
 
     /**
-     * Fetch hours data for all IMEIs for a single date window using Guzzle Pool.
+     * Fetch hours data for a batch of IMEIs using the Mileage API.
      * 
-     * Each IMEI is queried individually (1 IMEI per request) to avoid the
-     * 100-result cap truncation. Concurrency is limited to 5 to prevent 429 errors.
-     *
-     * @param array  $imeis     List of IMEIs
-     * @param string $startDate Window start
-     * @param string $endDate   Window end
-     * @param array  &$totals   Running totals (modified in place)
+     * Uses batches of 10 IMEIs so the 100-result cap has enough room for all trips.
+     * Hours = sum of trip runTimeSecond fields from result[] (seconds → hours)
+     * 
+     * Returns 'ok', 'rate_limited', or 'error'.
      */
-    private function fetchMileageWindowConcurrent(array $imeis, string $startDate, string $endDate, array &$totals): void
+    private function fetchMileageBatch(array $imeis, string $startDate, string $endDate, array &$totals): string
     {
-        $this->ensureValidToken();
+        try {
+            $response = $this->authenticatedRequest('jimi.device.track.mileage', [
+                'imeis' => implode(',', $imeis),
+                'begin_time' => $startDate,
+                'end_time' => $endDate,
+            ]);
 
-        $requests = function () use ($imeis, $startDate, $endDate) {
-            foreach ($imeis as $imei) {
-                $data = array_merge([
-                    'access_token' => $this->accessToken,
-                    'app_key' => self::APP_KEY,
-                    'format' => 'json',
-                    'method' => 'jimi.device.track.mileage',
-                    'sign_method' => 'md5',
-                    'timestamp' => $this->getGmtDate(),
-                    'v' => '1.0',
-                ], [
-                    'imeis' => $imei,
-                    'begin_time' => $startDate,
-                    'end_time' => $endDate,
-                ]);
+            $code = $response['code'] ?? 0;
 
-                $data['sign'] = $this->generateSignature($data);
-
-                yield $imei => new Request('POST', self::BASE_URL, [
-                    'Content-Type' => 'application/x-www-form-urlencoded',
-                ], http_build_query($data));
+            // Immediately signal rate limit — caller will abort all remaining batches
+            if ($code == 1006) {
+                return 'rate_limited';
             }
-        };
 
-        $pool = new Pool($this->client, $requests(), [
-            'concurrency' => self::CONCURRENCY,
-            'fulfilled' => function ($response, $imei) use (&$totals) {
-                $body = json_decode($response->getBody()->getContents(), true);
+            if ($code != 0) {
+                Log::warning("MaintenanceReportService: API code {$code}: " . ($response['message'] ?? 'unknown'));
+            }
 
-                if (isset($body['result']) && is_array($body['result'])) {
-                    $hours = 0;
-                    foreach ($body['result'] as $trip) {
-                        $hours += ((int)($trip['runTimeSecond'] ?? 0)) / 3600;
+            $resultCount = is_array($response['result'] ?? null) ? count($response['result']) : 0;
+
+            if (isset($response['result']) && is_array($response['result'])) {
+                $hoursByImei = [];
+                foreach ($response['result'] as $trip) {
+                    $imei = $trip['imei'] ?? null;
+                    if ($imei && isset($totals[$imei])) {
+                        $hoursByImei[$imei] = ($hoursByImei[$imei] ?? 0) + (((int)($trip['runTimeSecond'] ?? 0)) / 3600);
                     }
+                }
+                foreach ($hoursByImei as $imei => $hours) {
                     $totals[$imei]['hours'] = round($totals[$imei]['hours'] + $hours, 2);
                 }
-            },
-            'rejected' => function ($reason, $imei) {
-                Log::warning("MaintenanceReportService: Request failed for IMEI {$imei}: " . $reason->getMessage());
-            },
-        ]);
+            }
 
-        $pool->promise()->wait();
+            if ($resultCount >= 100) {
+                Log::warning("MaintenanceReportService: Batch hit 100-result cap — some trips may be truncated.");
+            }
+
+            return 'ok';
+
+        } catch (Exception $e) {
+            Log::error("MaintenanceReportService: Mileage batch failed: " . $e->getMessage());
+            return 'error';
+        }
     }
 
     /**
