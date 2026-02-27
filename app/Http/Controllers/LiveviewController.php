@@ -11,6 +11,7 @@ use App\Models\Maintenance;
 use App\Models\Tractor;
 use App\Models\TractorBooking;
 use App\Models\TractorGroup;
+use App\Models\TractorShare;
 use App\Models\User;
 use App\Services\MaintenanceReportService;
 use Carbon\Carbon;
@@ -18,6 +19,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class LiveviewController extends Controller
 {
@@ -1069,6 +1071,253 @@ class LiveviewController extends Controller
         ]);
     }
 
+    /**
+     * Dashboard cached version of currentDevice().
+     * Uses MaintenanceReportService cache instead of fresh Jimi API call.
+     */
+    public function dashboardCurrentDevice(Request $request)
+    {
+        $response['status'] = 'OK';
+
+        $dateTime = date('Y-m-d H:i:s');
+        $gmt_date = gmdate('Y-m-d H:i:s', strtotime($dateTime));
+
+        $devcieByImei = Device::where('imei_no', $request->imei)->first();
+        if (!$devcieByImei) {
+            $response['status'] = 'NOK';
+            return $response;
+        }
+
+        // Use cached device location from MaintenanceReportService
+        $maintenanceService = new MaintenanceReportService();
+        $deviceMap = $maintenanceService->getDeviceLocationMap();
+
+        if (!isset($deviceMap[$devcieByImei->imei_no])) {
+            $response['status'] = 'NOK';
+            return $response;
+        }
+
+        $apiData = $deviceMap[$devcieByImei->imei_no];
+
+        $devcieByImei['apiData'] = $apiData;
+        $tractor = Tractor::where([
+            'device_id' => $devcieByImei->id
+        ])->first();
+
+        $devcieByImei['tractor'] = $tractor;
+        $devcieByImei['user'] = User::where([
+            'id' => $tractor?->driver_id
+        ])->first();
+        $devcieByImei['group'] = TractorGroup::where([
+            'id' => $tractor?->group_id
+        ])->first();
+
+        $diffInSeconds = strtotime($gmt_date) - strtotime($apiData['hbTime']);
+        $days = floor($diffInSeconds / 86400);
+        $hours = floor(($diffInSeconds % 86400) / 3600);
+        $minutes = floor($diffInSeconds / 60);
+        $diff = "0 min";
+        if ($days > 1) {
+            $diff = "{$days} day+";
+        } elseif ($hours > 1) {
+            $diff = "{$hours} hr+";
+        } elseif ($minutes > 1) {
+            $diff = "{$minutes} min";
+        }
+
+        $devcieByImei['diff'] = $diff;
+        $devcieByImei['minutes'] = $minutes;
+
+        $geoFence = DeviceGeoFence::where(['imei' => $request->imei, 'state_id' => DeviceGeoFence::STATE_ACTIVE])->latest('id')->first();
+
+        $response['fence'] = $geoFence;
+        $response['device'] = $devcieByImei;
+
+        return $response;
+    }
+
+    /**
+     * Dashboard cached version of getDeviceWithState().
+     * Uses MaintenanceReportService cache instead of fresh Jimi API calls.
+     */
+    public function dashboardGetDeviceWithState(Request $request)
+    {
+        $state = $request->state;
+
+        // Set headers for SSE
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+
+        $dateTime = now();
+        $gmt_date = gmdate('Y-m-d H:i:s', strtotime($dateTime));
+        $userId = Auth::id();
+        $roleId = Auth::user()->role_id;
+
+        if ($state == Device::INACTIVE_DEVICES) {
+            $devices = Device::whereNull('activation_time')->get();
+            foreach ($devices as $device) {
+                $tractor = Tractor::where('device_id', $device->id)->first();
+                $device->tractor = $tractor;
+                $view = view('live-view.inactive-device-list', compact('device'))->render();
+                $html = ['html' => $view];
+                echo "data: " . json_encode($html) . "\n\n";
+                ob_flush();
+                flush();
+            }
+        } else {
+            $query = Device::select('id', 'imei_no', 'device_modal', 'device_name', 'subscription_expiration', 'expiration_date', 'sim')->whereNotNull('activation_time');
+
+            if ($roleId == User::ROLE_SUB_ADMIN) {
+                $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+                $deviceIds = TractorGroup::whereIn('id', $assignedGroups)
+                    ->pluck('device_ids')
+                    ->flatten()
+                    ->toArray();
+                $deviceIds = array_unique($deviceIds);
+                $query->whereIn('id', $deviceIds);
+            }
+
+            $devices = $query->get();
+
+            // Use cached device locations from MaintenanceReportService
+            $maintenanceService = new MaintenanceReportService();
+            $deviceMap = $maintenanceService->getDeviceLocationMap();
+
+            foreach ($devices as $device) {
+                if (!isset($deviceMap[$device->imei_no])) {
+                    continue;
+                }
+
+                $tractor = Tractor::where('device_id', $device->id)->first();
+                $device['apiData'] = $deviceMap[$device->imei_no];
+                $device['tractor'] = $tractor;
+
+                $diffInSeconds = strtotime($gmt_date) - strtotime($device['apiData']['hbTime']);
+                $days = floor($diffInSeconds / 86400);
+                $hours = floor(($diffInSeconds % 86400) / 3600);
+                $minutes = floor($diffInSeconds / 60);
+                $diff = "0 min";
+
+                if ($days > 1) {
+                    $diff = "{$days} day+";
+                } elseif ($hours > 1) {
+                    $diff = "{$hours} hr+";
+                } elseif ($minutes > 1) {
+                    $diff = "{$minutes} min";
+                }
+
+                $device['diff'] = $diff;
+                $device['minutes'] = $minutes;
+
+                if ($state == Device::ONLINE_DEVICES && $minutes <= 8) {
+                    $view = view('live-view.device-list', compact('device', 'state'))->render();
+                    $html = ['html' => $view];
+                    echo "data: " . json_encode($html) . "\n\n";
+                    ob_flush();
+                    flush();
+                } elseif ($state == Device::OFFLINE_DEVICES && $minutes > 8) {
+                    $view = view('live-view.device-list', compact('device', 'state'))->render();
+                    $html = ['html' => $view];
+                    echo "data: " . json_encode($html) . "\n\n";
+                    ob_flush();
+                    flush();
+                }
+            }
+        }
+
+        // End of data
+        echo "data: " . json_encode(['end' => true]) . "\n\n";
+        ob_flush();
+        flush();
+        exit;
+    }
+
+    /**
+     * Dashboard cached version of getFilteredDevices().
+     * Uses MaintenanceReportService cache instead of fresh Jimi API calls.
+     */
+    public function dashboardGetFilteredDevices(Request $request)
+    {
+        $type = $request->type;
+
+        // Set headers for SSE
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+
+        $dateTime = now();
+        $gmt_date = gmdate('Y-m-d H:i:s', strtotime($dateTime));
+        $userId = Auth::id();
+        $roleId = Auth::user()->role_id;
+
+        $query = Device::select('id', 'imei_no', 'device_modal', 'device_name', 'subscription_expiration', 'expiration_date', 'sim')->whereNotNull('activation_time');
+
+        if ($roleId == User::ROLE_SUB_ADMIN) {
+            $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+            $deviceIds = TractorGroup::whereIn('id', $assignedGroups)
+                ->pluck('device_ids')
+                ->flatten()
+                ->toArray();
+            $deviceIds = array_unique($deviceIds);
+            $query->whereIn('id', $deviceIds);
+        }
+
+        $devices = $query->get();
+
+        // Use cached device locations from MaintenanceReportService
+        $maintenanceService = new MaintenanceReportService();
+        $deviceMap = $maintenanceService->getDeviceLocationMap();
+
+        foreach ($devices as $device) {
+            if (!isset($deviceMap[$device->imei_no])) {
+                continue;
+            }
+
+            $tractor = Tractor::where('device_id', $device->id)->first();
+            $device['apiData'] = $deviceMap[$device->imei_no];
+            $device['tractor'] = $tractor;
+
+            $diffInSeconds = strtotime($gmt_date) - strtotime($device['apiData']['hbTime']);
+            $days = floor($diffInSeconds / 86400);
+            $hours = floor(($diffInSeconds % 86400) / 3600);
+            $minutes = floor($diffInSeconds / 60);
+            $diff = "0 min";
+
+            if ($days > 1) {
+                $diff = "{$days} day+";
+            } elseif ($hours > 1) {
+                $diff = "{$hours} hr+";
+            } elseif ($minutes > 1) {
+                $diff = "{$minutes} min";
+            }
+
+            $device['diff'] = $diff;
+            $device['minutes'] = $minutes;
+
+            $imei = $device->imei_no;
+            if ($type == Device::MOVING_DEVICES && $deviceMap[$imei]['status'] == 1 && $deviceMap[$imei]['accStatus'] == 1 && $deviceMap[$imei]['speed'] != 0) {
+                $view = view('live-view.device-list', compact('device'))->render();
+                $html = ['html' => $view];
+                echo "data: " . json_encode($html) . "\n\n";
+                ob_flush();
+                flush();
+            } elseif ($type == Device::IDLE_DEVICES && $deviceMap[$imei]['status'] == 1 && ($deviceMap[$imei]['speed'] == 0 || $deviceMap[$imei]['speed'] == null)) {
+                $view = view('live-view.device-list', compact('device'))->render();
+                $html = ['html' => $view];
+                echo "data: " . json_encode($html) . "\n\n";
+                ob_flush();
+                flush();
+            }
+        }
+
+        // End of data
+        echo "data: " . json_encode(['end' => true]) . "\n\n";
+        ob_flush();
+        flush();
+        exit;
+    }
+
     public function getFilteredDevices(Request $request)
     {
         $type = $request->type;
@@ -1223,5 +1472,128 @@ class LiveviewController extends Controller
         $tractor->update(['group_id' => $newGroupId]);
 
         return response()->json(['success' => true, 'message' => 'Group updated successfully']);
+    }
+
+    /**
+     * Create a shareable link for a device (valid for 1 hour).
+     */
+    public function createShareLink(Request $request)
+    {
+        try {
+            $imei = $request->input('imei');
+            if (empty($imei)) {
+                return response()->json(['error' => 'IMEI is required.'], 422);
+            }
+
+            $device = Device::where('imei_no', $imei)->first();
+            if (!$device) {
+                return response()->json(['error' => 'Device not found.'], 404);
+            }
+
+            $token = Str::random(48);
+
+            $share = TractorShare::create([
+                'token'       => $token,
+                'imei'        => $imei,
+                'device_name' => $device->device_name,
+                'created_by'  => Auth::id(),
+                'expires_at'  => now()->addHour(),
+            ]);
+
+            $url = url('/share/' . $token);
+
+            return response()->json([
+                'success' => true,
+                'url'     => $url,
+                'expires' => $share->expires_at->toIso8601String(),
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Failed to create share link: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Public share page — no auth required.
+     */
+    public function publicShare($token)
+    {
+        $share = TractorShare::where('token', $token)->first();
+
+        if (!$share) {
+            abort(404, 'Share link not found.');
+        }
+
+        if ($share->isExpired()) {
+            return view('share.expired');
+        }
+
+        return view('share.show', [
+            'share' => $share,
+            'googleMapKey' => env('GOOGLE_MAP_KEY'),
+        ]);
+    }
+
+    /**
+     * API endpoint for the public share page to get live location data.
+     */
+    public function publicShareData($token)
+    {
+        $share = TractorShare::where('token', $token)->first();
+
+        if (!$share || $share->isExpired()) {
+            return response()->json(['error' => 'Link expired or invalid.'], 403);
+        }
+
+        try {
+            $service = new MaintenanceReportService();
+            $locationMap = $service->getDeviceLocationMap();
+
+            if (isset($locationMap[$share->imei])) {
+                $api = $locationMap[$share->imei];
+                $dateTime = date('Y-m-d H:i:s');
+                $gmt_date = gmdate('Y-m-d H:i:s', strtotime($dateTime));
+                $diffInSeconds = strtotime($gmt_date) - strtotime($api['hbTime'] ?? $gmt_date);
+                $minutes = floor($diffInSeconds / 60);
+
+                return response()->json([
+                    'success'     => true,
+                    'device_name' => $share->device_name,
+                    'imei'        => $share->imei,
+                    'lat'         => $api['lat'],
+                    'lng'         => $api['lng'],
+                    'speed'       => $api['speed'] ?? 0,
+                    'status'      => $api['status'] ?? 0,
+                    'accStatus'   => $api['accStatus'] ?? 0,
+                    'hbTime'      => $api['hbTime'] ?? '',
+                    'minutes'     => $minutes,
+                    'posType'     => $api['posType'] ?? '',
+                    'direction'   => $api['direction'] ?? 0,
+                ]);
+            }
+
+            // Fallback: direct API call
+            $apiData = (new Jimi())->getDeviceLocation([$share->imei]);
+            if (!empty($apiData['result'][0])) {
+                $api = $apiData['result'][0];
+                return response()->json([
+                    'success'     => true,
+                    'device_name' => $share->device_name,
+                    'imei'        => $share->imei,
+                    'lat'         => $api['lat'],
+                    'lng'         => $api['lng'],
+                    'speed'       => $api['speed'] ?? 0,
+                    'status'      => $api['status'] ?? 0,
+                    'accStatus'   => $api['accStatus'] ?? 0,
+                    'hbTime'      => $api['hbTime'] ?? '',
+                    'minutes'     => 0,
+                    'posType'     => $api['posType'] ?? '',
+                    'direction'   => $api['direction'] ?? 0,
+                ]);
+            }
+
+            return response()->json(['error' => 'Device location not available.'], 404);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Failed to get location: ' . $e->getMessage()], 500);
+        }
     }
 }

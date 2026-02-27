@@ -36,6 +36,10 @@ Route::get('/update-profile', function () {
 
 Route::post('webhook', [DeviceController::class, 'geoFenceWebhook'])->name('devices.webhook');
 
+// Public share routes (no auth required)
+Route::get('/share/{token}', [LiveviewController::class, 'publicShare'])->name('share.show');
+Route::get('/share/{token}/data', [LiveviewController::class, 'publicShareData'])->name('share.data');
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
@@ -135,8 +139,12 @@ Route::middleware([
     Route::get('dashboardMarkersData', [LiveviewController::class, 'dashboardMarkersData'])->name('liveview.dashboardMarkersData');
     Route::get('dashboardGetDevicesCount', [LiveviewController::class, 'dashboardGetDevicesCount'])->name('liveview.dashboardGetDevicesCount');
     Route::get('dashboardAppendGroupDevices', [LiveviewController::class, 'dashboardAppendGroupDevices'])->name('liveview.dashboardAppendGroupDevices');
+    Route::get('dashboardCurrentDevice', [LiveviewController::class, 'dashboardCurrentDevice'])->name('liveview.dashboardCurrentDevice');
+    Route::get('dashboardGetDeviceWithState', [LiveviewController::class, 'dashboardGetDeviceWithState'])->name('liveview.dashboardGetDeviceWithState');
+    Route::get('dashboardGetFilteredDevices', [LiveviewController::class, 'dashboardGetFilteredDevices'])->name('liveview.dashboardGetFilteredDevices');
     Route::get('getFilteredDevices', [LiveviewController::class, 'getFilteredDevices'])->name('liveview.getFilteredDevices');
     Route::post('updateGroup', [LiveviewController::class, 'updateGroup'])->name('liveview.updateGroup');
+    Route::post('createShareLink', [LiveviewController::class, 'createShareLink'])->name('liveview.createShareLink');
     Route::resource('liveview', LiveviewController::class);
 
     //Booking Routes

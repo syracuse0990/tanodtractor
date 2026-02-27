@@ -1,4 +1,4 @@
-<script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAP_KEY') }}&callback=initMap" async defer>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAP_KEY') }}&libraries=geometry&callback=initMap" async defer>
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-marker-clusterer/1.0.0/markerclusterer.js"></script>
 <script src="/assets/js/markerckuster@2.5.3.min.js"></script>
@@ -14,6 +14,10 @@
     var is_paused = false;
     var centerImei = null;
     var old_imei = null;
+    var deviceDataStore = {}; // IMEI => device value object for sidebar
+    var currentSidebarImei = null; // IMEI of the device currently shown in sidebar
+    var currentSidebarDeviceId = null; // DB device ID for the sidebar device
+    var liveFollowInterval = null; // interval for Live follow mode
     var radiusCircle = null;
     var trackPath = null;
     var playback_marker = null;
@@ -42,6 +46,10 @@
     const markersDataUrl = window.liveviewMarkersDataUrl || '{{ route('liveview.markersData') }}';
     const devicesCountUrl = window.liveviewDevicesCountUrl || '{{ route('liveview.getDevicesCount') }}';
     const appendGroupDevicesUrl = window.liveviewAppendGroupDevicesUrl || '{{ route('liveview.appendGroupDevices') }}';
+    const currentDeviceUrl = window.liveviewCurrentDeviceUrl || '{{ route('liveview.currentDevice') }}';
+    const searchUrl = window.liveviewSearchUrl || '{{ route('liveview.search') }}';
+    const getDeviceWithStateUrl = window.liveviewGetDeviceWithStateUrl || '{{ route('liveview.getDeviceWithState') }}';
+    const getFilteredDevicesUrl = window.liveviewGetFilteredDevicesUrl || '{{ route('liveview.getFilteredDevices') }}';
 
     let timeLeft = liveviewRefreshSeconds; // Seconds
     const greenIcon = '{{ asset('assets/img/green_tractor.png') }}';
@@ -50,6 +58,752 @@
 
     // Map type preference: dashboard can pre-set this via window.liveviewDefaultMapType
     const defaultMapType = window.liveviewDefaultMapType || 'roadmap';
+
+    // ─── Tractor Detail Sidebar ───
+    function ensureSidebarExists() {
+        if (document.getElementById('tractorDetailSidebar')) return;
+
+        // Overlay
+        var overlay = document.createElement('div');
+        overlay.id = 'tractorSidebarOverlay';
+        overlay.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.25);z-index:9999;';
+        overlay.addEventListener('click', closeTractorSidebar);
+        document.body.appendChild(overlay);
+
+        // Sidebar
+        var sb = document.createElement('div');
+        sb.id = 'tractorDetailSidebar';
+        sb.style.cssText = 'position:fixed;top:0;right:-420px;width:400px;max-width:95vw;height:100vh;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.15);z-index:10000;transition:right .3s ease;overflow-y:auto;font-family:Segoe UI,Roboto,Arial,sans-serif;';
+        sb.innerHTML =
+            '<div class="tds-header">' +
+                '<h4 class="tds-device-name" id="tdsDeviceName"></h4>' +
+                '<p class="tds-imei" id="tdsImei"></p>' +
+                '<button class="tds-close" onclick="closeTractorSidebar()">&times;</button>' +
+            '</div>' +
+            '<div class="tds-body">' +
+                '<div class="tds-section">' +
+                    '<div class="tds-status-row">' +
+                        '<span class="tds-status-badge" id="tdsStatusBadge"></span>' +
+                        '<span class="tds-status-time" id="tdsStatusTime"></span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="tds-section">' +
+                    '<div class="tds-section-title">Address</div>' +
+                    '<div class="tds-address" id="tdsAddress">Loading...</div>' +
+                    '<div class="tds-coords" id="tdsCoords"></div>' +
+                '</div>' +
+                '<div class="tds-section">' +
+                    '<div class="tds-section-title">Device</div>' +
+                    '<div class="tds-row"><span class="tds-row-label">GNSS</span><span class="tds-row-value" id="tdsGnss"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">Visible satellites</span><span class="tds-row-value" id="tdsSatellites"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">Last online</span><span class="tds-row-value" id="tdsLastOnline"></span></div>' +
+                '</div>' +
+                '<div class="tds-section">' +
+                    '<div class="tds-section-title">Today\'s Activity</div>' +
+                    '<div class="tds-row"><span class="tds-row-label">Device accumulated mileage</span><span class="tds-row-value" id="tdsMileage"></span></div>' +
+                '</div>' +
+                '<div class="tds-section">' +
+                    '<div class="tds-section-title">Vehicle</div>' +
+                    '<div class="tds-row"><span class="tds-row-label">Name</span><span class="tds-row-value" id="tdsVehicleName"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">User</span><span class="tds-row-value" id="tdsUser"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">Phone</span><span class="tds-row-value" id="tdsPhone"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">Group</span><span class="tds-row-value" id="tdsGroup"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">ID</span><span class="tds-row-value" id="tdsId"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">Model</span><span class="tds-row-value" id="tdsModel"></span></div>' +
+                    '<div class="tds-row"><span class="tds-row-label">License plate</span><span class="tds-row-value" id="tdsPlate"></span></div>' +
+                '</div>' +
+                '<div class="tds-action-bar">' +
+                    '<button class="tds-action-btn" id="tdsLiveBtn" onclick="startLiveFollow()" title="Live"><i class="fa-solid fa-satellite-dish"></i><span>Live</span></button>' +
+                    '<button class="tds-action-btn" id="tdsTracksBtn" onclick="openTracksModal()" title="Tracks"><i class="fa-solid fa-route"></i><span>Tracks</span></button>' +
+                    '<button class="tds-action-btn" id="tdsShareBtn" onclick="openShareModal()" title="Share"><i class="fa-solid fa-share-nodes"></i><span>Share</span></button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(sb);
+    }
+
+    function openTractorSidebar(value) {
+        try {
+        ensureSidebarExists();
+
+        var api = value.apiData || {};
+        var tractor = value.tractor || {};
+        var user = value.user || {};
+        var group = value.group || {};
+
+        // Store current sidebar context
+        currentSidebarImei = value.imei_no || api.imei || null;
+        currentSidebarDeviceId = value.id || null;
+
+        // Header
+        document.getElementById('tdsDeviceName').textContent = value.device_name || api.deviceName || 'Unknown';
+        document.getElementById('tdsImei').textContent = value.imei_no || api.imei || '';
+
+        // Status
+        var statusBadge = document.getElementById('tdsStatusBadge');
+        var statusTime = document.getElementById('tdsStatusTime');
+        var acc = (api.accStatus == 1) ? 'ON' : 'OFF';
+        var minutes = value.minutes || 0;
+
+        statusBadge.className = 'tds-status-badge';
+        if (minutes > 8) {
+            statusBadge.classList.add('offline');
+            statusBadge.innerHTML = '<i class="fa-solid fa-ban"></i> Offline (ACC: ' + acc + ')';
+            statusTime.textContent = value.diff || '';
+        } else if (api.status == 1 && api.accStatus == 1 && api.speed && api.speed != 0) {
+            statusBadge.classList.add('moving');
+            statusBadge.innerHTML = '<i class="fa-solid fa-tractor"></i> Moving (ACC: ' + acc + ')';
+            statusTime.textContent = api.speed + ' km/h';
+        } else if (api.status == 1) {
+            statusBadge.classList.add('idling');
+            statusBadge.innerHTML = '<i class="fa-solid fa-stopwatch"></i> Idling (ACC: ' + acc + ')';
+            statusTime.textContent = value.diff || '';
+        } else {
+            statusBadge.classList.add('offline');
+            statusBadge.innerHTML = '<i class="fa-solid fa-ban"></i> Offline (ACC: ' + acc + ')';
+            statusTime.textContent = value.diff || '';
+        }
+
+        // Address — reverse geocode
+        var lat = parseFloat(api.lat) || 0;
+        var lng = parseFloat(api.lng) || 0;
+        document.getElementById('tdsCoords').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+        document.getElementById('tdsAddress').textContent = 'Loading address...';
+        reverseGeocode(lat, lng, function(addr) {
+            var el = document.getElementById('tdsAddress');
+            if (el) el.textContent = addr;
+        });
+
+        // Device
+        var hbDate = new Date(api.hbTime || '');
+        var localTime = isNaN(hbDate.getTime()) ? (api.hbTime || 'N/A') : hbDate.toLocaleString('en-US', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+        });
+        document.getElementById('tdsGnss').textContent = api.posType || 'N/A';
+        document.getElementById('tdsSatellites').textContent = (api.gpsNum !== undefined) ? api.gpsNum : 'N/A';
+        document.getElementById('tdsLastOnline').textContent = localTime;
+
+        // Mileage
+        var mileage = api.currentMileage ? (parseFloat(api.currentMileage).toFixed(2) + ' km') : 'N/A';
+        document.getElementById('tdsMileage').textContent = mileage;
+
+        // Vehicle
+        document.getElementById('tdsVehicleName').textContent = tractor.id_no ? (tractor.id_no + (tractor.model ? ' (' + tractor.model + ')' : '')) : '-';
+        document.getElementById('tdsUser').textContent = user.name || user.email || '-';
+        document.getElementById('tdsPhone').textContent = user.phone || '-';
+        document.getElementById('tdsGroup').textContent = group.name || '-';
+        document.getElementById('tdsId').textContent = tractor.id_no || '-';
+        document.getElementById('tdsModel').textContent = tractor.model || '-';
+        document.getElementById('tdsPlate').textContent = tractor.no_plate || '-';
+
+        // Open
+        var oEl = document.getElementById('tractorSidebarOverlay');
+        var sEl = document.getElementById('tractorDetailSidebar');
+        oEl.classList.add('open');
+        oEl.style.display = 'block';
+        sEl.classList.add('open');
+        sEl.style.right = '0';
+        } catch(e) {
+            console.error('openTractorSidebar error:', e);
+        }
+    }
+
+    function closeTractorSidebar() {
+        var sb = document.getElementById('tractorDetailSidebar');
+        var ov = document.getElementById('tractorSidebarOverlay');
+        if (sb) { sb.classList.remove('open'); sb.style.right = '-420px'; }
+        if (ov) { ov.classList.remove('open'); ov.style.display = 'none'; }
+        stopLiveFollow();
+    }
+
+    // ─── Live Follow ───
+    function startLiveFollow() {
+        var btn = document.getElementById('tdsLiveBtn');
+        if (liveFollowInterval) {
+            // Already following — stop
+            stopLiveFollow();
+            return;
+        }
+        if (!currentSidebarImei) return;
+
+        // Visual feedback
+        if (btn) { btn.classList.add('active'); btn.querySelector('span').textContent = 'Following'; }
+
+        // Immediately center
+        var m = markers['marker_' + currentSidebarImei];
+        if (m) {
+            map.setZoom(16);
+            map.panTo(m.getPosition());
+        }
+
+        // Re-center every 3 seconds
+        liveFollowInterval = setInterval(function() {
+            var mk = markers['marker_' + currentSidebarImei];
+            if (mk) {
+                map.panTo(mk.getPosition());
+            }
+        }, 3000);
+    }
+
+    function stopLiveFollow() {
+        if (liveFollowInterval) {
+            clearInterval(liveFollowInterval);
+            liveFollowInterval = null;
+        }
+        var btn = document.getElementById('tdsLiveBtn');
+        if (btn) { btn.classList.remove('active'); btn.querySelector('span').textContent = 'Live'; }
+    }
+
+    // ─── Tracks Modal ───
+    function ensureTracksModalExists() {
+        if (document.getElementById('tracksModalOverlay')) return;
+
+        var overlay = document.createElement('div');
+        overlay.id = 'tracksModalOverlay';
+        overlay.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.5);z-index:10010;align-items:center;justify-content:center;';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) closeTracksModal(); });
+
+        var modal = document.createElement('div');
+        modal.id = 'tracksModal';
+        modal.style.cssText = 'background:#fff;border-radius:12px;width:820px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);font-family:Segoe UI,Roboto,Arial,sans-serif;';
+        modal.innerHTML =
+            '<div style="padding:14px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">' +
+                '<h5 style="margin:0;font-size:17px;font-weight:600;"><i class="fa-solid fa-route" style="color:#1a73e8;margin-right:6px;"></i>Track History</h5>' +
+                '<button onclick="closeTracksModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;padding:0 4px;">&times;</button>' +
+            '</div>' +
+            '<div style="padding:16px 20px;">' +
+                '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">' +
+                    '<div style="flex:1;min-width:140px;">' +
+                        '<label style="font-size:12px;font-weight:500;color:#555;display:block;margin-bottom:3px;">Period</label>' +
+                        '<select id="tracksModalPeriod" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;">' +
+                            '<option value="1">Today</option>' +
+                            '<option value="3" selected>Last 3 days</option>' +
+                            '<option value="4">This week</option>' +
+                            '<option value="6">This month</option>' +
+                            '<option value="7">Last month</option>' +
+                            '<option value="8">Custom</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<div id="tracksModalDateRow" style="flex:1;min-width:180px;display:none;">' +
+                        '<label style="font-size:12px;font-weight:500;color:#555;display:block;margin-bottom:3px;">Date Range</label>' +
+                        '<input type="text" id="tracksModalDateRange" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" placeholder="Select date range" readonly />' +
+                    '</div>' +
+                    '<button id="tracksModalSearchBtn" onclick="searchTracksModal()" style="padding:7px 20px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;height:36px;">Search</button>' +
+                '</div>' +
+                '<div id="tracksModalLoader" style="display:none;text-align:center;padding:30px;">' +
+                    '<span class="spinner-border text-primary"></span> Loading track data...' +
+                '</div>' +
+                '<div id="tracksModalError" style="display:none;margin-top:12px;padding:10px;background:#fff3cd;color:#856404;border-radius:6px;font-size:13px;"></div>' +
+                '<div id="tracksModalMapContainer" style="display:none;margin-top:14px;border-radius:8px;overflow:hidden;border:1px solid #eee;">' +
+                    '<div id="tracksModalMap" style="width:100%;height:420px;"></div>' +
+                    '<div id="tmPlaybackPanel" style="background:#fff;padding:10px 16px 8px;">' +
+                        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">' +
+                            '<span style="font-size:12px;color:#555;">Speed: <b id="tmSpeedVal">0</b> km/h</span>' +
+                            '<span id="tmGpsTime" style="font-size:12px;color:#888;"></span>' +
+                        '</div>' +
+                        '<div style="display:flex;align-items:center;gap:8px;">' +
+                            '<button id="tmPlayBtn" onclick="tmTogglePlay()" style="width:32px;height:32px;border:none;background:#1a73e8;color:#fff;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-play"></i></button>' +
+                            '<div id="tmProgressBarWrap" style="flex:1;height:6px;background:#e0e0e0;border-radius:3px;cursor:pointer;position:relative;" onclick="tmSeek(event)">' +
+                                '<div id="tmProgressBar" style="height:100%;width:0%;background:#1a73e8;border-radius:3px;transition:width .1s;"></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">' +
+                            '<button onclick="tmReplay()" style="border:none;background:none;cursor:pointer;font-size:12px;color:#1a73e8;display:flex;align-items:center;gap:4px;"><i class="fa-solid fa-arrow-rotate-right"></i> Replay</button>' +
+                            '<div style="display:flex;align-items:center;gap:4px;">' +
+                                '<span style="font-size:11px;color:#888;">Speed:</span>' +
+                                '<select id="tmSpeedMultiplier" onchange="tmUpdateSpeed()" style="border:1px solid #ddd;border-radius:4px;font-size:11px;padding:1px 4px;">' +
+                                    '<option value="1" selected>1x</option>' +
+                                    '<option value="2">2x</option>' +
+                                    '<option value="4">4x</option>' +
+                                    '<option value="8">8x</option>' +
+                                '</select>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
+
+    var tracksModalMap = null;
+    var tracksModalPolyline = null;
+    // Tracks modal playback state
+    var tmTrackPath = null;      // full path polyline (light)
+    var tmAnimPolyline = null;   // animated progressive polyline
+    var tmAnimMarker = null;     // tractor marker
+    var tmAnimInterval = null;
+    var tmCoords = [];
+    var tmGpsTime = [];
+    var tmGpsSpeed = [];
+    var tmDirection = [];
+    var tmStep = 0;
+    var tmPlaying = false;
+    var tmSpeedMult = 1;
+    var tmAnimDrawn = [];        // coords drawn so far
+    const tmIntervalMs = 16;
+    const tmPixelsPerTick = 0.5;
+    const tmTractorSvg = "M15 30C18.9782 30 22.7936 28.4196 25.6066 25.6066C28.4196 22.7936 30 18.9782 30 15C30 11.0218 28.4196 7.20644 25.6066 4.3934C22.7936 1.58035 18.9782 0 15 0C11.0218 0 7.20644 1.58035 4.3934 4.3934C1.58035 7.20644 0 11.0218 0 15C0 18.9782 1.58035 22.7936 4.3934 25.6066C7.20644 28.4196 11.0218 30 15 30ZM22.0898 15.8789C22.6406 16.4297 22.6406 17.3203 22.0898 17.8652C21.5391 18.4102 20.6484 18.416 20.1035 17.8652L15.0059 12.7676L9.9082 17.8652C9.35742 18.416 8.4668 18.416 7.92187 17.8652C7.37695 17.3145 7.37109 16.4238 7.92187 15.8789L14.0039 9.78516C14.5547 9.23438 15.4453 9.23438 15.9902 9.78516L22.0898 15.8789Z";
+
+    function openTracksModal() {
+        if (!currentSidebarImei) return;
+        ensureTracksModalExists();
+        tmStopAnimation();
+
+        var overlay = document.getElementById('tracksModalOverlay');
+        overlay.style.display = 'flex';
+        document.getElementById('tracksModalMapContainer').style.display = 'none';
+        document.getElementById('tracksModalError').style.display = 'none';
+        document.getElementById('tracksModalLoader').style.display = 'none';
+
+        var periodEl = document.getElementById('tracksModalPeriod');
+        periodEl.value = '3';
+        document.getElementById('tracksModalDateRow').style.display = 'none';
+
+        periodEl.onchange = function() {
+            document.getElementById('tracksModalDateRow').style.display = (this.value == '8') ? 'block' : 'none';
+        };
+
+        if ($.fn.daterangepicker && !$('#tracksModalDateRange').data('daterangepicker')) {
+            $('#tracksModalDateRange').daterangepicker({
+                autoUpdateInput: false,
+                maxDate: new Date(),
+                locale: { format: 'YYYY/MM/DD', cancelLabel: 'Clear' }
+            });
+            $('#tracksModalDateRange').on('apply.daterangepicker', function(ev, picker) {
+                $(this).val(picker.startDate.format('YYYY/MM/DD') + ' - ' + picker.endDate.format('YYYY/MM/DD'));
+            });
+            $('#tracksModalDateRange').on('cancel.daterangepicker', function() {
+                $(this).val('');
+            });
+        }
+    }
+
+    function closeTracksModal() {
+        var overlay = document.getElementById('tracksModalOverlay');
+        if (overlay) overlay.style.display = 'none';
+        tmStopAnimation();
+        if (tmTrackPath) { tmTrackPath.setMap(null); tmTrackPath = null; }
+        if (tmAnimPolyline) { tmAnimPolyline.setMap(null); tmAnimPolyline = null; }
+        if (tmAnimMarker) { tmAnimMarker.setMap(null); tmAnimMarker = null; }
+        if (tracksModalPolyline) { tracksModalPolyline.setMap(null); tracksModalPolyline = null; }
+    }
+
+    function searchTracksModal() {
+        if (!currentSidebarDeviceId && !currentSidebarImei) return;
+
+        var period = document.getElementById('tracksModalPeriod').value;
+        var dateRange = document.getElementById('tracksModalDateRange') ? document.getElementById('tracksModalDateRange').value : '';
+        var errEl = document.getElementById('tracksModalError');
+        var loaderEl = document.getElementById('tracksModalLoader');
+        var mapContainer = document.getElementById('tracksModalMapContainer');
+
+        errEl.style.display = 'none';
+        loaderEl.style.display = 'block';
+        mapContainer.style.display = 'none';
+        tmStopAnimation();
+
+        $.ajax({
+            url: '{{ route("liveview.getTrackData") }}',
+            type: 'GET',
+            data: {
+                device_imei: currentSidebarDeviceId || '',
+                period: period,
+                date_range: dateRange
+            },
+            success: function(response) {
+                loaderEl.style.display = 'none';
+                if (response.error) {
+                    errEl.textContent = response.error;
+                    errEl.style.display = 'block';
+                    return;
+                }
+                if (!response.latlng || response.latlng.length === 0) {
+                    errEl.textContent = 'No track data found for this period.';
+                    errEl.style.display = 'block';
+                    return;
+                }
+
+                // Store track data
+                tmCoords = response.latlng;
+                tmGpsTime = response.gpsTime || [];
+                tmGpsSpeed = response.gpsSpeed || [];
+                tmDirection = response.direction || [];
+                tmStep = 0;
+                tmPlaying = false;
+                tmAnimDrawn = [];
+
+                // Show map
+                mapContainer.style.display = 'block';
+                if (!tracksModalMap) {
+                    tracksModalMap = new google.maps.Map(document.getElementById('tracksModalMap'), {
+                        center: tmCoords[0],
+                        zoom: 14,
+                        mapTypeId: 'roadmap',
+                        mapTypeControl: false,
+                        streetViewControl: false,
+                    });
+                } else {
+                    tracksModalMap.setCenter(tmCoords[0]);
+                    tracksModalMap.setZoom(14);
+                }
+
+                // Clear old overlays
+                if (tmTrackPath) tmTrackPath.setMap(null);
+                if (tmAnimPolyline) tmAnimPolyline.setMap(null);
+                if (tmAnimMarker) { tmAnimMarker.setMap(null); tmAnimMarker = null; }
+                if (tracksModalPolyline) { tracksModalPolyline.setMap(null); tracksModalPolyline = null; }
+
+                // Light full-path polyline (shows entire route faintly)
+                tmTrackPath = new google.maps.Polyline({
+                    path: tmCoords,
+                    geodesic: true,
+                    strokeColor: '#1a73e8',
+                    strokeOpacity: 0.25,
+                    strokeWeight: 3,
+                    map: tracksModalMap,
+                });
+
+                // Animated progressive polyline (draws behind the tractor)
+                tmAnimPolyline = new google.maps.Polyline({
+                    geodesic: true,
+                    strokeColor: '#1a73e8',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 3,
+                    zIndex: 1000,
+                    map: tracksModalMap,
+                });
+
+                // Fit bounds
+                var bounds = new google.maps.LatLngBounds();
+                tmCoords.forEach(function(p) { bounds.extend(p); });
+                tracksModalMap.fitBounds(bounds);
+                google.maps.event.trigger(tracksModalMap, 'resize');
+
+                // Reset playback UI
+                document.getElementById('tmProgressBar').style.width = '0%';
+                document.getElementById('tmSpeedVal').textContent = tmGpsSpeed[0] || '0';
+                tmUpdateTimeDisplay(0);
+                var playBtn = document.getElementById('tmPlayBtn');
+                playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            },
+            error: function() {
+                loaderEl.style.display = 'none';
+                errEl.textContent = 'Failed to fetch track data. Please try again.';
+                errEl.style.display = 'block';
+            }
+        });
+    }
+
+    // ─── Tracks Modal Playback Engine ───
+
+    function tmTogglePlay() {
+        if (tmCoords.length === 0) return;
+        if (tmPlaying) {
+            tmPause();
+        } else {
+            tmPlay();
+        }
+    }
+
+    function tmPlay() {
+        if (tmCoords.length === 0) return;
+        tmPlaying = true;
+        var playBtn = document.getElementById('tmPlayBtn');
+        playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+
+        // If finished, restart
+        if (tmStep >= tmCoords.length) {
+            tmStep = 0;
+            tmAnimDrawn = [];
+            if (tmAnimPolyline) tmAnimPolyline.setPath([]);
+        }
+
+        // Create tractor marker if needed
+        if (!tmAnimMarker) {
+            tmAnimMarker = new google.maps.Marker({
+                map: tracksModalMap,
+                position: tmCoords[tmStep],
+                icon: {
+                    path: tmTractorSvg,
+                    anchor: new google.maps.Point(15, 15),
+                    rotation: tmDirection[tmStep] || 0,
+                    fillColor: '#fff',
+                    fillOpacity: 1,
+                    strokeColor: '#1a73e8',
+                    strokeWeight: 2,
+                    scale: 1,
+                },
+                zIndex: 2000,
+            });
+        } else {
+            tmAnimMarker.setMap(tracksModalMap);
+            tmAnimMarker.setPosition(tmCoords[tmStep]);
+        }
+
+        tmAnimDrawn.push(tmCoords[tmStep]);
+
+        tmSpeedMult = parseInt(document.getElementById('tmSpeedMultiplier').value) || 1;
+
+        tmAnimInterval = setInterval(function() {
+            if (tmStep >= tmCoords.length) {
+                tmStopAnimation();
+                var playBtn2 = document.getElementById('tmPlayBtn');
+                if (playBtn2) playBtn2.innerHTML = '<i class="fa-solid fa-play"></i>';
+                return;
+            }
+
+            var target = tmCoords[tmStep];
+            var curPos = tmAnimMarker.getPosition();
+            var heading = google.maps.geometry.spherical.computeHeading(curPos, target);
+            var dist = google.maps.geometry.spherical.computeDistanceBetween(curPos, target);
+            var moveBy = tmPixelsPerTick * tmSpeedMult;
+
+            if (dist > moveBy) {
+                var newPos = google.maps.geometry.spherical.computeOffset(curPos, moveBy, heading);
+                tmAnimMarker.setPosition(newPos);
+                tmAnimMarker.setIcon({
+                    path: tmTractorSvg,
+                    anchor: new google.maps.Point(15, 15),
+                    rotation: tmDirection[tmStep] || 0,
+                    fillColor: '#fff',
+                    fillOpacity: 1,
+                    strokeColor: '#1a73e8',
+                    strokeWeight: 2,
+                    scale: 1,
+                });
+                tmAnimDrawn.push({lat: newPos.lat(), lng: newPos.lng()});
+            } else {
+                tmAnimMarker.setPosition(target);
+                tmAnimMarker.setIcon({
+                    path: tmTractorSvg,
+                    anchor: new google.maps.Point(15, 15),
+                    rotation: tmDirection[tmStep] || 0,
+                    fillColor: '#fff',
+                    fillOpacity: 1,
+                    strokeColor: '#1a73e8',
+                    strokeWeight: 2,
+                    scale: 1,
+                });
+                tmAnimDrawn.push(target);
+                tmStep++;
+            }
+
+            // Update progressive polyline
+            tmAnimPolyline.setPath(tmAnimDrawn);
+
+            // Update UI
+            var pct = (tmStep / tmCoords.length) * 100;
+            document.getElementById('tmProgressBar').style.width = pct + '%';
+            var idx = Math.min(tmStep, tmGpsSpeed.length - 1);
+            document.getElementById('tmSpeedVal').textContent = tmGpsSpeed[idx] || '0';
+            tmUpdateTimeDisplay(idx);
+        }, tmIntervalMs);
+    }
+
+    function tmPause() {
+        tmPlaying = false;
+        if (tmAnimInterval) { clearInterval(tmAnimInterval); tmAnimInterval = null; }
+        var playBtn = document.getElementById('tmPlayBtn');
+        if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+    }
+
+    function tmStopAnimation() {
+        tmPlaying = false;
+        if (tmAnimInterval) { clearInterval(tmAnimInterval); tmAnimInterval = null; }
+    }
+
+    function tmReplay() {
+        tmStopAnimation();
+        tmStep = 0;
+        tmAnimDrawn = [];
+        if (tmAnimPolyline) tmAnimPolyline.setPath([]);
+        if (tmAnimMarker) tmAnimMarker.setMap(null);
+        tmAnimMarker = null;
+        document.getElementById('tmProgressBar').style.width = '0%';
+        document.getElementById('tmSpeedVal').textContent = tmGpsSpeed[0] || '0';
+        tmUpdateTimeDisplay(0);
+        var playBtn = document.getElementById('tmPlayBtn');
+        if (playBtn) playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        tmPlay();
+    }
+
+    function tmUpdateSpeed() {
+        tmSpeedMult = parseInt(document.getElementById('tmSpeedMultiplier').value) || 1;
+    }
+
+    function tmSeek(event) {
+        if (tmCoords.length === 0) return;
+        var bar = document.getElementById('tmProgressBarWrap');
+        var rect = bar.getBoundingClientRect();
+        var pct = (event.clientX - rect.left) / rect.width;
+        pct = Math.max(0, Math.min(1, pct));
+        var newStep = Math.floor(pct * tmCoords.length);
+
+        var wasPlaying = tmPlaying;
+        tmStopAnimation();
+
+        tmStep = newStep;
+        // Rebuild drawn path up to this step
+        tmAnimDrawn = tmCoords.slice(0, tmStep + 1);
+        if (tmAnimPolyline) tmAnimPolyline.setPath(tmAnimDrawn);
+
+        if (tmAnimMarker) {
+            tmAnimMarker.setPosition(tmCoords[tmStep]);
+        }
+
+        document.getElementById('tmProgressBar').style.width = (pct * 100) + '%';
+        var idx = Math.min(tmStep, tmGpsSpeed.length - 1);
+        document.getElementById('tmSpeedVal').textContent = tmGpsSpeed[idx] || '0';
+        tmUpdateTimeDisplay(idx);
+
+        if (wasPlaying) tmPlay();
+    }
+
+    function tmUpdateTimeDisplay(idx) {
+        var el = document.getElementById('tmGpsTime');
+        if (!el) return;
+        var raw = tmGpsTime[idx];
+        if (!raw) { el.textContent = ''; return; }
+        var d = new Date(raw);
+        if (isNaN(d.getTime())) { el.textContent = raw; return; }
+        el.textContent = d.toLocaleString('en-US', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+        });
+    }
+
+    // ─── Share Modal ───
+    function ensureShareModalExists() {
+        if (document.getElementById('shareModalOverlay')) return;
+
+        var overlay = document.createElement('div');
+        overlay.id = 'shareModalOverlay';
+        overlay.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.5);z-index:10010;align-items:center;justify-content:center;';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) closeShareModal(); });
+
+        var modal = document.createElement('div');
+        modal.id = 'shareModal';
+        modal.style.cssText = 'background:#fff;border-radius:12px;width:420px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.25);font-family:Segoe UI,Roboto,Arial,sans-serif;';
+        modal.innerHTML =
+            '<div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;">' +
+                '<h5 style="margin:0;font-size:17px;font-weight:600;">Share Location</h5>' +
+                '<button onclick="closeShareModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;padding:0 4px;">&times;</button>' +
+            '</div>' +
+            '<div style="padding:20px;">' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
+                    '<i class="fa-solid fa-clock" style="font-size:20px;color:#1a73e8;"></i>' +
+                    '<div>' +
+                        '<div style="font-size:15px;font-weight:600;color:#333;">Valid for 1 Hour</div>' +
+                        '<div style="font-size:12px;color:#888;">Anyone with the link can view the live location</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div id="shareModalResult" style="display:none;margin-bottom:14px;">' +
+                    '<label style="font-size:13px;font-weight:500;color:#555;display:block;margin-bottom:4px;">Share Link</label>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<input type="text" id="shareModalUrl" readonly style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#f8f9fa;" />' +
+                        '<button onclick="copyShareLink()" style="padding:8px 14px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;white-space:nowrap;"><i class="fa-solid fa-copy"></i> Copy</button>' +
+                    '</div>' +
+                    '<div id="shareModalCopied" style="display:none;font-size:12px;color:#28a745;margin-top:4px;">Link copied to clipboard!</div>' +
+                '</div>' +
+                '<div id="shareModalError" style="display:none;margin-bottom:14px;padding:10px;background:#f8d7da;color:#842029;border-radius:6px;font-size:13px;"></div>' +
+                '<button id="shareModalGetLinkBtn" onclick="getShareLink()" style="width:100%;padding:10px;background:#1a73e8;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;">' +
+                    '<i class="fa-solid fa-link"></i> Get a link' +
+                '</button>' +
+                '<div id="shareModalLoader" style="display:none;text-align:center;padding:12px;">' +
+                    '<span class="spinner-border spinner-border-sm text-primary"></span> Generating link...' +
+                '</div>' +
+            '</div>';
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
+
+    function openShareModal() {
+        if (!currentSidebarImei) return;
+        ensureShareModalExists();
+
+        var overlay = document.getElementById('shareModalOverlay');
+        overlay.style.display = 'flex';
+        document.getElementById('shareModalResult').style.display = 'none';
+        document.getElementById('shareModalError').style.display = 'none';
+        document.getElementById('shareModalLoader').style.display = 'none';
+        document.getElementById('shareModalGetLinkBtn').style.display = 'block';
+    }
+
+    function closeShareModal() {
+        var overlay = document.getElementById('shareModalOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    function getShareLink() {
+        if (!currentSidebarImei) return;
+
+        var btnEl = document.getElementById('shareModalGetLinkBtn');
+        var loaderEl = document.getElementById('shareModalLoader');
+        var resultEl = document.getElementById('shareModalResult');
+        var errEl = document.getElementById('shareModalError');
+
+        btnEl.style.display = 'none';
+        loaderEl.style.display = 'block';
+        resultEl.style.display = 'none';
+        errEl.style.display = 'none';
+
+        $.ajax({
+            url: '{{ route("liveview.createShareLink") }}',
+            type: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            data: { imei: currentSidebarImei },
+            success: function(response) {
+                loaderEl.style.display = 'none';
+                if (response.success) {
+                    document.getElementById('shareModalUrl').value = response.url;
+                    resultEl.style.display = 'block';
+                    document.getElementById('shareModalCopied').style.display = 'none';
+                } else {
+                    errEl.textContent = response.error || 'Failed to generate link.';
+                    errEl.style.display = 'block';
+                    btnEl.style.display = 'block';
+                }
+            },
+            error: function(xhr) {
+                loaderEl.style.display = 'none';
+                var msg = 'Failed to generate share link.';
+                if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
+                errEl.textContent = msg;
+                errEl.style.display = 'block';
+                btnEl.style.display = 'block';
+            }
+        });
+    }
+
+    function copyShareLink() {
+        var urlInput = document.getElementById('shareModalUrl');
+        if (!urlInput) return;
+        urlInput.select();
+        document.execCommand('copy');
+        var copiedEl = document.getElementById('shareModalCopied');
+        if (copiedEl) {
+            copiedEl.style.display = 'block';
+            setTimeout(function() { copiedEl.style.display = 'none'; }, 2000);
+        }
+    }
+
+    function reverseGeocode(lat, lng, callback) {
+        if (!window.google || !google.maps || !google.maps.Geocoder) {
+            callback(lat + ', ' + lng);
+            return;
+        }
+        var geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: { lat: parseFloat(lat), lng: parseFloat(lng) } }, function(results, status) {
+            if (status === 'OK' && results && results[0]) {
+                callback(results[0].formatted_address);
+            } else {
+                callback(lat + ', ' + lng);
+            }
+        });
+    }
 
     //Initialize Map 
     function initMap() {
@@ -284,11 +1038,17 @@
             });
 
             marker.addListener("click", () => {
-                infowindow.open({
-                    anchor: marker,
-                    map,
-                });
+                // Zoom to tractor location
+                map.setZoom(16);
+                map.panTo(marker.getPosition());
+
+                // Open the detail sidebar with stored device data
+                var storedData = deviceDataStore[value.imei_no] || value;
+                openTractorSidebar(storedData);
             });
+
+            // Store device data for sidebar use
+            deviceDataStore[value.imei_no] = value;
 
             markers['marker_' + value.imei_no] = marker;
             contents['infowindow_' + value.imei_no] = infowindow;
@@ -745,9 +1505,21 @@
                     '</div></div></div></div>';
 
             contents['infowindow_' + value.imei_no].setContent(contentString);
+
+            // Update stored device data for sidebar
+            deviceDataStore[value.imei_no] = value;
+
+            // If sidebar is open for this device, refresh it
+            var sb = document.getElementById('tractorDetailSidebar');
+            if (sb && sb.classList.contains('open')) {
+                var currentImei = document.getElementById('tdsImei');
+                if (currentImei && currentImei.textContent === value.imei_no) {
+                    openTractorSidebar(value);
+                }
+            }
         }
 
-        //function to show countdown for 15 seconds on map
+        //function to show countdown for 20 seconds on map
         function countdown() {
             timeLeft--;
             document.getElementById("seconds").innerHTML = String(timeLeft + 's');
@@ -820,7 +1592,7 @@
             $('body').append(loader);
 
             $.ajax({
-                url: '{{ route('liveview.currentDevice') }}',
+                url: currentDeviceUrl,
                 type: 'GET',
                 data: {
                     '_token': '{{ csrf_token() }}',
@@ -843,6 +1615,9 @@
 
                         // update marker
                         updateMarkerData(value);
+
+                        // Open detail sidebar for this device
+                        openTractorSidebar(value);
 
                         if (fence) {
                             let latlng = new google.maps.LatLng(fence.latitude, fence
@@ -1028,7 +1803,7 @@
             $("#suggesstion-box").show();
             $("#suggesstion-box").html('');
             $.ajax({
-                url: "{{ route('liveview.search') }}",
+                url: searchUrl,
                 type: "GET",
                 data: {
                     'search': $(this).val()
@@ -1109,7 +1884,7 @@
                 '<div class="loading-div text-center my-3"><span class="spinner-border text-primary"></span> Loading...</div>'
             );
 
-            const source = new EventSource("{{ route('liveview.getDeviceWithState') }}?state=" + state);
+            const source = new EventSource(getDeviceWithStateUrl + "?state=" + state);
 
             source.onmessage = function(event) {
                 const data = JSON.parse(event.data);
@@ -1149,9 +1924,9 @@
 
             let source;
             if (type == 3) {
-                source = new EventSource("{{ route('liveview.getDeviceWithState') }}?state=" + 2);
+                source = new EventSource(getDeviceWithStateUrl + "?state=" + 2);
             } else {
-                source = new EventSource("{{ route('liveview.getFilteredDevices') }}?type=" + type);
+                source = new EventSource(getFilteredDevicesUrl + "?type=" + type);
             }
 
             source.onmessage = function(event) {

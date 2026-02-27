@@ -41,7 +41,7 @@
 
     <!-- Styles -->
     @livewireStyles
-    <link href="{{ asset('assets/css/index.css?ver=0.008') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/index.css?ver=0.010') }}" rel="stylesheet">
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">

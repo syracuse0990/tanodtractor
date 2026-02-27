@@ -546,6 +546,9 @@
             window.liveviewMarkersDataUrl = '{{ route('liveview.dashboardMarkersData') }}';
             window.liveviewDevicesCountUrl = '{{ route('liveview.dashboardGetDevicesCount') }}';
             window.liveviewAppendGroupDevicesUrl = '{{ route('liveview.dashboardAppendGroupDevices') }}';
+            window.liveviewCurrentDeviceUrl = '{{ route('liveview.dashboardCurrentDevice') }}';
+            window.liveviewGetDeviceWithStateUrl = '{{ route('liveview.dashboardGetDeviceWithState') }}';
+            window.liveviewGetFilteredDevicesUrl = '{{ route('liveview.dashboardGetFilteredDevices') }}';
         </script>
         @include('live-view.index-script')
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
