@@ -34,7 +34,10 @@
     const intervalDuration = 16;
     const pixelsToMovePerInterval = 0.5;
 
-    let timeLeft = 16; //Seconds
+    const liveviewRefreshIntervalMs = Number(window.liveviewRefreshIntervalMs || 15000);
+    const liveviewAutoRefreshEnabled = window.liveviewAutoRefreshEnabled !== false;
+    const liveviewRefreshSeconds = Math.max(1, Math.ceil(liveviewRefreshIntervalMs / 1000));
+    let timeLeft = liveviewRefreshSeconds; // Seconds
     const greenIcon = '{{ asset('assets/img/green_tractor.png') }}';
     const redIcon = '{{ asset('assets/img/red_tractor.png') }}';
     const yellowIcon = '{{ asset('assets/img/yellow_tractor.png') }}';
@@ -520,8 +523,8 @@
 
         });
 
-        let interval = setInterval(
-            function getData(event) {
+        if (liveviewAutoRefreshEnabled) {
+            setInterval(function getData() {
                 if (is_refresh) {
                     const source = new EventSource('{{ route('liveview.markersData') }}');
 
@@ -543,7 +546,10 @@
                         source.close();
                     };
                 }
-            }, 15000);
+            }, liveviewRefreshIntervalMs);
+        } else {
+            $('#clock').addClass('d-none');
+        }
 
         //function to update marker data
         function updateMarkerData(value) {
@@ -699,7 +705,7 @@
             if (timeLeft > 0) {
                 setTimeout(countdown, 1000);
             } else {
-                timeLeft = 16;
+                timeLeft = liveviewRefreshSeconds;
                 setTimeout(countdown, 1000);
             }
         }
