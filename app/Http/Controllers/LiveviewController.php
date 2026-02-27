@@ -189,7 +189,8 @@ class LiveviewController extends Controller
 
     /**
      * Dashboard version of appendGroupDevices using MaintenanceReportService cache.
-     * Same output format but reads from the 10-min cached device location map.
+     * Groups devices by the Jimi API groupName field instead of local DB groups,
+     * so it matches what the Jimi platform shows (including default group).
      */
     public function dashboardAppendGroupDevices(Request $request)
     {
@@ -197,67 +198,69 @@ class LiveviewController extends Controller
             $userId = Auth::id();
             $roleId = Auth::user()->role_id;
 
-            $groupsQuery = TractorGroup::query();
+            $service = new MaintenanceReportService();
+
+            // Get cached device locations from Jimi API
+            $apiDataByImei = $service->getDeviceLocationMap();
+
+            // Get cached IMEI → group mapping from jimi.user.device.list
+            $groupMapData = $service->getDeviceGroupMap();
+            $imeiGroup = $groupMapData['imeiGroup'] ?? [];
+            $apiGroups = $groupMapData['groups'] ?? [];
+
+            // For sub-admins, restrict to their assigned devices only
             if ($roleId == User::ROLE_SUB_ADMIN) {
                 $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
-                $groupsQuery->whereIn('id', $assignedGroups);
+                $allowedDeviceIds = Tractor::whereIn('group_id', $assignedGroups)
+                    ->whereNotNull('device_id')
+                    ->pluck('device_id')
+                    ->toArray();
+                $allowedImeis = Device::whereIn('id', array_unique($allowedDeviceIds))
+                    ->pluck('imei_no')
+                    ->filter()
+                    ->toArray();
+                $apiDataByImei = array_intersect_key($apiDataByImei, array_flip($allowedImeis));
             }
-            $groups = $groupsQuery->latest('id')->get();
 
-            $groupIds = $groups->pluck('id')->toArray();
-            $deviceIdsFromTractors = Tractor::whereIn('group_id', $groupIds)
-                ->whereNotNull('device_id')
-                ->pluck('device_id')
-                ->toArray();
+            // Group location data by Jimi API group name
+            $groupedDevices = [];
+            foreach ($apiDataByImei as $imei => $device) {
+                $groupName = $imeiGroup[$imei] ?? 'Ungrouped';
+                $groupedDevices[$groupName][] = $device;
+            }
 
-            $deviceIdsFromGroups = $groups->pluck('device_ids')->map(function ($ids) {
-                return $ids ?? [];
-            })->flatten()->toArray();
+            // Sort: Default group first, then alphabetical
+            uksort($groupedDevices, function ($a, $b) {
+                $aDefault = stripos($a, 'default') !== false;
+                $bDefault = stripos($b, 'default') !== false;
+                if ($aDefault && !$bDefault) return -1;
+                if (!$aDefault && $bDefault) return 1;
+                return strcasecmp($a, $b);
+            });
 
-            $groupDeviceIds = array_values(array_unique(array_merge($deviceIdsFromGroups, $deviceIdsFromTractors)));
-            $allDevices = Device::whereIn('id', $groupDeviceIds)->get()->keyBy('id');
-
-            $tractorDevicesByGroup = Tractor::whereIn('group_id', $groupIds)
-                ->whereNotNull('device_id')
-                ->get(['group_id', 'device_id'])
-                ->groupBy('group_id')
-                ->map(function ($rows) {
-                    return $rows->pluck('device_id')->unique()->values()->toArray();
-                })
-                ->toArray();
-
-            // Use cache instead of fresh API calls
-            $apiDataByImei = (new MaintenanceReportService())->getDeviceLocationMap();
-
-            return response()->stream(function () use ($groups, $allDevices, $tractorDevicesByGroup, $apiDataByImei) {
+            return response()->stream(function () use ($groupedDevices) {
                 echo "data: " . json_encode(['start' => true]) . "\n\n";
                 ob_flush();
                 flush();
 
-                foreach ($groups as $group) {
-                    $deviceIdsFromGroup = $group->device_ids ? $group->device_ids : [];
-                    $deviceIdsFromTractor = $tractorDevicesByGroup[$group->id] ?? [];
-                    $deviceIds = !empty($deviceIdsFromTractor)
-                        ? $deviceIdsFromTractor
-                        : $deviceIdsFromGroup;
-                    $deviceIds = array_values(array_unique($deviceIds));
-
-                    $deviceImeis = collect($deviceIds)->map(fn($id) => $allDevices[$id]->imei_no ?? null)->filter()->toArray();
-                    $apiData = collect($deviceImeis)
-                        ->map(fn($imei) => $apiDataByImei[$imei] ?? null)
-                        ->filter()
-                        ->values()
-                        ->toArray();
+                foreach ($groupedDevices as $groupName => $apiData) {
+                    $groupSlug = \Illuminate\Support\Str::slug($groupName, '_');
 
                     if (!empty($apiData)) {
-                        $view = view('live-view.append-group-device', compact('group', 'apiData'))->render();
+                        $group = null; // No DB group — using API groupName
+                        $view = view('live-view.append-group-device', compact('apiData'))->render();
                     } else {
                         $view = '<div class="d-flex justify-content-between my-3">
                                 <div class="d-flex gap-2">No Data Found</div>
                             </div>';
                     }
 
-                    echo "data: " . json_encode(['group_id' => $group->id, 'html' => $view]) . "\n\n";
+                    echo "data: " . json_encode([
+                        'group_id' => $groupSlug,
+                        'group_name' => $groupName,
+                        'device_count' => count($apiData),
+                        'html' => $view,
+                    ]) . "\n\n";
                     ob_flush();
                     flush();
                 }

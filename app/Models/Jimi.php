@@ -12,6 +12,14 @@ class Jimi extends Model
 {
     use HasFactory;
 
+    /**
+     * Create a Guzzle HTTP client with SSL verification disabled (WAMP compatibility).
+     */
+    protected function httpClient(): Client
+    {
+        return new Client(['verify' => false]);
+    }
+
     public function getToken()
     {
         $date = date('Y-m-d H:i:s');
@@ -36,7 +44,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -88,7 +96,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data,
@@ -147,7 +155,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data,
@@ -207,7 +215,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data,
@@ -271,7 +279,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data,
@@ -336,7 +344,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data,
@@ -396,7 +404,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -447,7 +455,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data,
@@ -509,7 +517,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data,
@@ -568,7 +576,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -619,7 +627,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -672,7 +680,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -722,7 +730,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -774,7 +782,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -824,7 +832,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -873,7 +881,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -916,7 +924,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -962,7 +970,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -1020,7 +1028,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data
@@ -1064,7 +1072,7 @@ class Jimi extends Model
             'Content-Type' => 'application/x-www-form-urlencoded'
         ];
         try {
-            $client = new Client();
+            $client = $this->httpClient();
             $res = $client->request('POST', $url, [
                 'headers' => $headers,
                 'form_params' => $data

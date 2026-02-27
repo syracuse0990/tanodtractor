@@ -5,10 +5,8 @@
 @foreach ($apiData as $data)
     @php
         $device = Device::where('imei_no', $data['imei'])->select('id', 'activation_time', 'device_name')->first();
-        $tractor = Tractor::where([
-            'device_id' => $device->id,
-            'group_id' => $group?->id,
-        ])->first();
+        if (!$device) continue;
+        $tractor = Tractor::where('device_id', $device->id)->first();
 
         $dateTime = date('Y-m-d H:i:s');
         $gmt_date = gmdate('Y-m-d H:i:s', strtotime($dateTime));

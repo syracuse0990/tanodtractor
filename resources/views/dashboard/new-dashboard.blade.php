@@ -4,9 +4,11 @@
     use App\Models\FarmerFeedback;
     use App\Models\TractorBooking;
     use App\Models\TractorGroup;
+    use App\Models\Tractor;
     use App\Models\User;
     use App\Services\MaintenanceReportService;
     use Illuminate\Support\Facades\Auth;
+    use Illuminate\Support\Str;
 
     $userId = Auth::id();
     $roleId = Auth::user()->role_id;
@@ -44,6 +46,39 @@
     $bookedTractors = TractorBooking::where('state_id', TractorBooking::STATE_ACTIVE)->count();
     $groupsCount = TractorGroup::count();
     $feedbackCount = FarmerFeedback::where('state_id', FarmerFeedback::STATE_ACTIVE)->count();
+
+    // Build API-based group list from cached Jimi device group mapping
+    $groupMapData = $maintenanceService->getDeviceGroupMap();
+    $imeiGroupMap = $groupMapData['imeiGroup'] ?? [];
+    $deviceMap = $maintenanceService->getDeviceLocationMap();
+    // For sub-admins, restrict to assigned devices
+    if ($roleId == User::ROLE_SUB_ADMIN) {
+        $allowedDeviceIds = Tractor::whereIn('group_id', $assignedGroups->toArray())
+            ->whereNotNull('device_id')
+            ->pluck('device_id')
+            ->toArray();
+        $allowedImeis = Device::whereIn('id', array_unique($allowedDeviceIds))
+            ->pluck('imei_no')
+            ->filter()
+            ->toArray();
+        $deviceMap = array_intersect_key($deviceMap, array_flip($allowedImeis));
+    }
+    $apiGroups = [];
+    foreach ($deviceMap as $imei => $device) {
+        $gName = $imeiGroupMap[$imei] ?? 'Ungrouped';
+        if (!isset($apiGroups[$gName])) {
+            $apiGroups[$gName] = 0;
+        }
+        $apiGroups[$gName]++;
+    }
+    // Sort: Default group first, then alphabetical
+    uksort($apiGroups, function ($a, $b) {
+        $aDefault = stripos($a, 'default') !== false;
+        $bDefault = stripos($b, 'default') !== false;
+        if ($aDefault && !$bDefault) return -1;
+        if (!$aDefault && $bDefault) return 1;
+        return strcasecmp($a, $b);
+    });
 @endphp
 
 <x-app-layout>
@@ -296,7 +331,7 @@
                 <div class="col-6 col-lg-3">
                     <a href="{{ route('reports.maintenanceReports') }}" class="kpi-link">
                         <div class="stat-card bg-pms">
-                            <div class="stat-value" id="kpi-pms">{{ $pmsTractors }}</div>
+                            <div class="stat-value" id="kpi-pms">{{ $pmsTractors}}</div>
                             <div class="stat-label">Tractors for PMS</div>
                         </div>
                     </a>
@@ -389,25 +424,26 @@
                                                 </ul>
                                                 <div class="accordion accordion-flush" id="accordionFlushExample" style="max-height: 64vh; overflow-y: auto;">
                                                     <div class="listSections" id="grouplistSection">
-                                                        @foreach ($groups as $group)
+                                                        @foreach ($apiGroups as $groupName => $deviceCount)
+                                                            @php $groupSlug = Str::slug($groupName, '_'); @endphp
                                                             <div class="accordion-item border-0 mb-3">
-                                                                <h2 class="accordion-header" id="flush-headingOne{{ $group->id }}">
+                                                                <h2 class="accordion-header" id="flush-heading_{{ $groupSlug }}">
                                                                     <button class="accordion-button collapsed" type="button"
                                                                         data-bs-toggle="collapse"
-                                                                        data-bs-target="#collapse{{ $group->id }}"
+                                                                        data-bs-target="#collapse_{{ $groupSlug }}"
                                                                         aria-expanded="false"
-                                                                        aria-controls="collapse{{ $group->id }}">
-                                                                        {{ $group->name }}
+                                                                        aria-controls="collapse_{{ $groupSlug }}">
+                                                                        {{ $groupName }} <span class="badge bg-secondary ms-2">{{ $deviceCount }}</span>
                                                                     </button>
                                                                 </h2>
-                                                                <div id="collapse{{ $group->id }}"
+                                                                <div id="collapse_{{ $groupSlug }}"
                                                                     class="accordion-collapse collapse"
-                                                                    aria-labelledby="flush-headingOne{{ $group->id }}"
+                                                                    aria-labelledby="flush-heading_{{ $groupSlug }}"
                                                                     data-bs-parent="#accordionFlushExample">
                                                                     <div class="accordion-body">
-                                                                        <div id="groupDevices{{ $group->id }}">
+                                                                        <div id="groupDevices{{ $groupSlug }}">
                                                                             <div class="d-flex justify-content-between my-3">
-                                                                                <div class="d-flex gap-2">No Data Found</div>
+                                                                                <div class="d-flex gap-2">Loading...</div>
                                                                             </div>
                                                                         </div>
                                                                     </div>

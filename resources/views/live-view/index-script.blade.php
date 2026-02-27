@@ -1275,6 +1275,14 @@
                 const html = data.html;
                 let div = $('#groupDevices' + groupId);
                 div.html(html);
+
+                // Update device count badge if provided
+                if (data.device_count !== undefined) {
+                    let badge = div.closest('.accordion-item').find('.accordion-button .badge');
+                    if (badge.length) {
+                        badge.text(data.device_count);
+                    }
+                }
             };
 
             source.onerror = function() {

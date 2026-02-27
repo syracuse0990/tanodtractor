@@ -77,6 +77,29 @@ class MaintenanceReportService
     }
 
     /**
+     * Get a mapping of IMEI => group name from jimi.user.device.list.
+     *
+     * This API returns deviceGroupId and deviceGroup per device, which the
+     * location API (jimi.user.device.location.list) does NOT include.
+     * Cached for 30 minutes (groups rarely change).
+     *
+     * @param  bool  $forceRefresh  Ignore cache
+     * @return array{groups: array<string, array{id: string, name: string, devices: string[]}>, imeiGroup: array<string, string>}
+     */
+    public function getDeviceGroupMap(bool $forceRefresh = false): array
+    {
+        $cacheKey = 'jimi_device_group_map';
+
+        if ($forceRefresh) {
+            Cache::forget($cacheKey);
+        }
+
+        return Cache::remember($cacheKey, now()->addMinutes(30), function () {
+            return $this->fetchDeviceGroupMapping();
+        });
+    }
+
+    /**
      * Get device status counts (total, online, offline) from the cached device
      * location API call.  Accepts an optional list of IMEIs to filter on so the
      * caller can scope results to a group / sub-admin.
@@ -123,34 +146,26 @@ class MaintenanceReportService
     }
 
     /**
-     * Count devices that need PMS (total_hours >= 100) from cached maintenance data.
-     * Accepts an optional list of IMEIs to scope the count.
-     *
-     * When $cacheOnly is true (recommended for dashboard), only reads from the
-     * existing cache. Returns 0 if the cache is cold — avoids triggering the
-     * expensive mileage-fetch that can take several minutes on a cold cache.
-     * The cache is populated automatically when someone visits Maintenance Reports.
+     * Count devices that need PMS (currentMileage >= 1000 km) from the
+     * cached device-location map (always available, cheap single API call).
      *
      * @param  string[]  $filterImeis  Only count these IMEIs (empty = all)
-     * @param  bool      $cacheOnly    If true, never trigger a fresh API fetch
+     * @param  bool      $cacheOnly    Kept for signature compatibility (unused)
      * @return int
      */
     public function getPmsCount(array $filterImeis = [], bool $cacheOnly = false): int
     {
-        if ($cacheOnly) {
-            $maintenanceData = Cache::get('maintenance_reports_data', []);
-        } else {
-            $maintenanceData = $this->getMaintenanceData();
-        }
+        $deviceMap = $this->getDeviceLocationMap();
 
         $count = 0;
         $filterSet = !empty($filterImeis) ? array_flip($filterImeis) : null;
 
-        foreach ($maintenanceData as $device) {
-            if ($filterSet !== null && !isset($filterSet[$device['imei'] ?? ''])) {
+        foreach ($deviceMap as $imei => $device) {
+            if ($filterSet !== null && !isset($filterSet[$imei])) {
                 continue;
             }
-            if (!empty($device['needs_pms'])) {
+            $mileage = (float) ($device['currentMileage'] ?? 0);
+            if ($mileage >= 1000) {
                 $count++;
             }
         }
@@ -220,6 +235,68 @@ class MaintenanceReportService
         } catch (Exception $e) {
             Log::error("MaintenanceReportService: Failed to fetch device list: " . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Fetch device-to-group mapping from jimi.user.device.list.
+     *
+     * Returns an array with two keys:
+     *   - 'groups': groupName => { id, name, devices[] }
+     *   - 'imeiGroup': IMEI => groupName
+     */
+    private function fetchDeviceGroupMapping(): array
+    {
+        try {
+            $response = $this->authenticatedRequest('jimi.user.device.list', [
+                'target' => self::TARGET_USER,
+            ]);
+
+            $devices = $response['result'] ?? [];
+            $groups = [];
+            $imeiGroup = [];
+
+            foreach ($devices as $device) {
+                $imei      = $device['imei']          ?? null;
+                $groupName = $device['deviceGroup']   ?? 'Default Group';
+                $groupId   = $device['deviceGroupId'] ?? '';
+
+                if (!$imei) {
+                    continue;
+                }
+
+                $imeiGroup[$imei] = $groupName;
+
+                if (!isset($groups[$groupName])) {
+                    $groups[$groupName] = [
+                        'id'      => $groupId,
+                        'name'    => $groupName,
+                        'devices' => [],
+                    ];
+                }
+                $groups[$groupName]['devices'][] = $imei;
+            }
+
+            // Sort groups alphabetically, but keep "Default group" first
+            uksort($groups, function ($a, $b) {
+                $aDefault = stripos($a, 'default') !== false;
+                $bDefault = stripos($b, 'default') !== false;
+                if ($aDefault && !$bDefault) return -1;
+                if (!$aDefault && $bDefault) return 1;
+                return strcasecmp($a, $b);
+            });
+
+            Log::info("MaintenanceReportService: Fetched group mapping — " . count($groups) . " groups, " . count($imeiGroup) . " devices");
+            return [
+                'groups'    => $groups,
+                'imeiGroup' => $imeiGroup,
+            ];
+        } catch (Exception $e) {
+            Log::error("MaintenanceReportService: Failed to fetch device group mapping: " . $e->getMessage());
+            return [
+                'groups'    => [],
+                'imeiGroup' => [],
+            ];
         }
     }
 
@@ -385,7 +462,7 @@ class MaintenanceReportService
                 'vehicleNumber'  => $device['vehicleNumber'] ?? null,
                 'total_hours'    => $totalHours,
                 'total_distance' => $totalDistance,
-                'needs_pms'      => $totalHours >= 100,
+                'needs_pms'      => $totalHours >= 5 && $totalHours > 0,
                 'status'         => $device['status'] ?? '0',
                 'last_active'    => $device['hbTime'] ?? null,
             ];
