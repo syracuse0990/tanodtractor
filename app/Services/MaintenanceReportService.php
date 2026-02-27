@@ -53,6 +53,60 @@ class MaintenanceReportService
     }
 
     /**
+     * Get device status counts (total, online, offline) from the cached device
+     * location API call.  Accepts an optional list of IMEIs to filter on so the
+     * caller can scope results to a group / sub-admin.
+     *
+     * Cached separately from the full maintenance data with a shorter TTL
+     * (10 min) because online/offline status changes more frequently.
+     *
+     * @param  string[]  $filterImeis  Only count these IMEIs (empty = all)
+     * @param  bool      $forceRefresh Ignore cache
+     * @return array{total: int, online: int, offline: int}
+     */
+    public function getDeviceStatusCounts(array $filterImeis = [], bool $forceRefresh = false): array
+    {
+        $cacheKey = 'maintenance_device_location_map';
+
+        if ($forceRefresh) {
+            Cache::forget($cacheKey);
+        }
+
+        /** @var array<string, array> $deviceMap  IMEI => device data from API */
+        $deviceMap = Cache::remember($cacheKey, now()->addMinutes(10), function () {
+            return $this->fetchAllDevicesWithLocation();
+        });
+
+        $online  = 0;
+        $offline = 0;
+
+        // When filterImeis is provided, only iterate over those IMEIs
+        $imeis = !empty($filterImeis)
+            ? $filterImeis
+            : array_keys($deviceMap);
+
+        foreach ($imeis as $imei) {
+            if (!isset($deviceMap[$imei])) {
+                continue;           // IMEI not returned by API – skip
+            }
+
+            $status = (int) ($deviceMap[$imei]['status'] ?? 0);
+
+            if ($status === 1) {
+                $online++;
+            } else {
+                $offline++;
+            }
+        }
+
+        return [
+            'total'   => $online + $offline,
+            'online'  => $online,
+            'offline' => $offline,
+        ];
+    }
+
+    /**
      * Get all maintenance report data: devices with total hours, distance, status.
      * Results are sorted by total_hours DESC and cached for 30 minutes.
      *

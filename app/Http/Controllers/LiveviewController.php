@@ -12,6 +12,7 @@ use App\Models\Tractor;
 use App\Models\TractorBooking;
 use App\Models\TractorGroup;
 use App\Models\User;
+use App\Services\MaintenanceReportService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -758,7 +759,7 @@ class LiveviewController extends Controller
         }
         $feedbackCount = $feedbackQuery->count();
 
-        // Keep these three counters aligned with Live View device logic.
+        // Use MaintenanceReportService (cached device location API) for online/offline counts.
         $onlineCount = 0;
         $offlineCount = 0;
         $inactiveCount = 0;
@@ -801,39 +802,27 @@ class LiveviewController extends Controller
         $filteredDeviceIds = (clone $devicesForCounts)->pluck('id')->toArray();
 
         if (!empty($filteredDeviceIds)) {
-            $activeDevices = Device::whereIn('id', $filteredDeviceIds)
-                ->whereNotNull('activation_time')
-                ->get(['id', 'imei_no']);
-
+            // Inactive = devices that have never been activated
             $inactiveCount = Device::whereIn('id', $filteredDeviceIds)
                 ->whereNull('activation_time')
                 ->count();
 
-            $imeis = $activeDevices->pluck('imei_no')->filter()->toArray();
+            // Collect IMEIs of activated devices for the API-based status check
+            $imeis = Device::whereIn('id', $filteredDeviceIds)
+                ->whereNotNull('activation_time')
+                ->pluck('imei_no')
+                ->filter()
+                ->values()
+                ->toArray();
+
             if (!empty($imeis)) {
-                $dateTime = now();
-                $gmtDate = gmdate('Y-m-d H:i:s', strtotime($dateTime));
-                $chunks = array_chunk($imeis, 99);
-
-                foreach ($chunks as $chunk) {
-                    $apiData = (new Jimi())->getDeviceLocation($chunk)['result'] ?? [];
-                    $apiData = array_column($apiData, null, 'imei');
-
-                    foreach ($chunk as $imei) {
-                        if (!isset($apiData[$imei])) {
-                            continue;
-                        }
-
-                        $status = (int) ($apiData[$imei]['status'] ?? 0);
-                        if ($status === 1) {
-                            $onlineCount++;
-                        } else {
-                            $offlineCount++;
-                        }
-                    }
-                }
+                $statusCounts = (new MaintenanceReportService())->getDeviceStatusCounts($imeis);
+                $onlineCount  = $statusCounts['online'];
+                $offlineCount = $statusCounts['offline'];
             }
         }
+
+        $totalTractors = count($tractorIds);
 
         return response()->json([
             'data' => [
