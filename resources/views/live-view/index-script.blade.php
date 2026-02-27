@@ -37,6 +37,12 @@
     const liveviewRefreshIntervalMs = Number(window.liveviewRefreshIntervalMs || 15000);
     const liveviewAutoRefreshEnabled = window.liveviewAutoRefreshEnabled !== false;
     const liveviewRefreshSeconds = Math.max(1, Math.ceil(liveviewRefreshIntervalMs / 1000));
+
+    // Allow dashboard to override these URLs with cached endpoints
+    const markersDataUrl = window.liveviewMarkersDataUrl || '{{ route('liveview.markersData') }}';
+    const devicesCountUrl = window.liveviewDevicesCountUrl || '{{ route('liveview.getDevicesCount') }}';
+    const appendGroupDevicesUrl = window.liveviewAppendGroupDevicesUrl || '{{ route('liveview.appendGroupDevices') }}';
+
     let timeLeft = liveviewRefreshSeconds; // Seconds
     const greenIcon = '{{ asset('assets/img/green_tractor.png') }}';
     const redIcon = '{{ asset('assets/img/red_tractor.png') }}';
@@ -82,7 +88,7 @@
 
     //Function to create markers on initialization
     function createMarkersFunction() {
-        const source = new EventSource('{{ route('liveview.markersData') }}');
+        const source = new EventSource(markersDataUrl);
 
         source.onmessage = function(event) {
             const response = JSON.parse(event.data);
@@ -450,7 +456,7 @@
         getDevicesCount();
 
         function appendGroupDevices() {
-            const source = new EventSource("{{ route('liveview.appendGroupDevices') }}");
+            const source = new EventSource(appendGroupDevicesUrl);
 
             source.onmessage = function(event) {
                 const data = JSON.parse(event.data);
@@ -476,7 +482,7 @@
 
         function getDevicesCount() {
             $.ajax({
-                url: "{{ route('liveview.getDevicesCount') }}",
+                url: devicesCountUrl,
                 type: 'GET',
                 success: function(response) {
                     $('#onlineCount').html('(' + response.data.onlineCount + ')');
@@ -526,7 +532,7 @@
         if (liveviewAutoRefreshEnabled) {
             setInterval(function getData() {
                 if (is_refresh) {
-                    const source = new EventSource('{{ route('liveview.markersData') }}');
+                    const source = new EventSource(markersDataUrl);
 
                     source.onmessage = function(event) {
                         const response = JSON.parse(event.data);

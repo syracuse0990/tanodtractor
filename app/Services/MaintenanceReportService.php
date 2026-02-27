@@ -53,6 +53,30 @@ class MaintenanceReportService
     }
 
     /**
+     * Get the full cached device location map (IMEI => raw API data).
+     *
+     * Returns all fields from jimi.user.device.location.list including
+     * lat, lng, status, accStatus, speed, hbTime, posType, gpsNum, etc.
+     * Cached for 10 minutes. Callers can use this to render map markers
+     * without making additional Jimi API calls.
+     *
+     * @param  bool  $forceRefresh  Ignore cache
+     * @return array<string, array>  IMEI => device data from API
+     */
+    public function getDeviceLocationMap(bool $forceRefresh = false): array
+    {
+        $cacheKey = 'maintenance_device_location_map';
+
+        if ($forceRefresh) {
+            Cache::forget($cacheKey);
+        }
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () {
+            return $this->fetchAllDevicesWithLocation();
+        });
+    }
+
+    /**
      * Get device status counts (total, online, offline) from the cached device
      * location API call.  Accepts an optional list of IMEIs to filter on so the
      * caller can scope results to a group / sub-admin.
@@ -66,16 +90,8 @@ class MaintenanceReportService
      */
     public function getDeviceStatusCounts(array $filterImeis = [], bool $forceRefresh = false): array
     {
-        $cacheKey = 'maintenance_device_location_map';
-
-        if ($forceRefresh) {
-            Cache::forget($cacheKey);
-        }
-
         /** @var array<string, array> $deviceMap  IMEI => device data from API */
-        $deviceMap = Cache::remember($cacheKey, now()->addMinutes(10), function () {
-            return $this->fetchAllDevicesWithLocation();
-        });
+        $deviceMap = $this->getDeviceLocationMap($forceRefresh);
 
         $online  = 0;
         $offline = 0;
@@ -104,6 +120,42 @@ class MaintenanceReportService
             'online'  => $online,
             'offline' => $offline,
         ];
+    }
+
+    /**
+     * Count devices that need PMS (total_hours >= 100) from cached maintenance data.
+     * Accepts an optional list of IMEIs to scope the count.
+     *
+     * When $cacheOnly is true (recommended for dashboard), only reads from the
+     * existing cache. Returns 0 if the cache is cold — avoids triggering the
+     * expensive mileage-fetch that can take several minutes on a cold cache.
+     * The cache is populated automatically when someone visits Maintenance Reports.
+     *
+     * @param  string[]  $filterImeis  Only count these IMEIs (empty = all)
+     * @param  bool      $cacheOnly    If true, never trigger a fresh API fetch
+     * @return int
+     */
+    public function getPmsCount(array $filterImeis = [], bool $cacheOnly = false): int
+    {
+        if ($cacheOnly) {
+            $maintenanceData = Cache::get('maintenance_reports_data', []);
+        } else {
+            $maintenanceData = $this->getMaintenanceData();
+        }
+
+        $count = 0;
+        $filterSet = !empty($filterImeis) ? array_flip($filterImeis) : null;
+
+        foreach ($maintenanceData as $device) {
+            if ($filterSet !== null && !isset($filterSet[$device['imei'] ?? ''])) {
+                continue;
+            }
+            if (!empty($device['needs_pms'])) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**

@@ -2,11 +2,10 @@
     use App\Models\AssignedGroup;
     use App\Models\Device;
     use App\Models\FarmerFeedback;
-    use App\Models\Maintenance;
-    use App\Models\Tractor;
     use App\Models\TractorBooking;
     use App\Models\TractorGroup;
     use App\Models\User;
+    use App\Services\MaintenanceReportService;
     use Illuminate\Support\Facades\Auth;
 
     $userId = Auth::id();
@@ -34,21 +33,15 @@
     }
     $allDevices = $allDevices->latest('id')->get();
 
-    $totalTractorsQuery = Tractor::query();
-    if ($roleId == User::ROLE_SUB_ADMIN) {
-        $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
-        $totalTractorsQuery->whereIn('group_id', $assignedGroups);
-    }
-    if (!empty($selectedGroupId)) {
-        $totalTractorsQuery->where('group_id', $selectedGroupId);
-    }
-    $totalTractors = $totalTractorsQuery->count();
+    // Get Total Tractors & PMS count from MaintenanceReportService (Jimi API, cached)
+    $maintenanceService = new MaintenanceReportService();
+    $statusCounts = $maintenanceService->getDeviceStatusCounts();
+    $pmsTractors = $maintenanceService->getPmsCount([], true);
+    // Total = online + offline + inactive (devices without activation_time)
+    $inactiveDevices = Device::whereNull('activation_time')->count();
+    $totalTractors = $statusCounts['online'] + $statusCounts['offline'] + $inactiveDevices;
+
     $bookedTractors = TractorBooking::where('state_id', TractorBooking::STATE_ACTIVE)->count();
-    $pmsTractors = Maintenance::whereIn('state_id', [
-        Maintenance::STATE_DOCUMENTATION,
-        Maintenance::STATE_FILLED,
-        Maintenance::STATE_INPROGRESS,
-    ])->count();
     $groupsCount = TractorGroup::count();
     $feedbackCount = FarmerFeedback::where('state_id', FarmerFeedback::STATE_ACTIVE)->count();
 @endphp
@@ -547,6 +540,11 @@
             // Dashboard: disable realtime polling; manual reload/filter is enough.
             window.liveviewRefreshIntervalMs = 60000;
             window.liveviewAutoRefreshEnabled = false;
+
+            // Use cached MaintenanceReportService endpoints for faster dashboard loading.
+            window.liveviewMarkersDataUrl = '{{ route('liveview.dashboardMarkersData') }}';
+            window.liveviewDevicesCountUrl = '{{ route('liveview.dashboardGetDevicesCount') }}';
+            window.liveviewAppendGroupDevicesUrl = '{{ route('liveview.dashboardAppendGroupDevices') }}';
         </script>
         @include('live-view.index-script')
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

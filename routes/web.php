@@ -132,6 +132,9 @@ Route::middleware([
     Route::get('getDeviceWithState', [LiveviewController::class, 'getDeviceWithState'])->name('liveview.getDeviceWithState');
     Route::get('getDevicesCount', [LiveviewController::class, 'getDevicesCount'])->name('liveview.getDevicesCount');
     Route::get('dashboardStats', [LiveviewController::class, 'dashboardStats'])->name('liveview.dashboardStats');
+    Route::get('dashboardMarkersData', [LiveviewController::class, 'dashboardMarkersData'])->name('liveview.dashboardMarkersData');
+    Route::get('dashboardGetDevicesCount', [LiveviewController::class, 'dashboardGetDevicesCount'])->name('liveview.dashboardGetDevicesCount');
+    Route::get('dashboardAppendGroupDevices', [LiveviewController::class, 'dashboardAppendGroupDevices'])->name('liveview.dashboardAppendGroupDevices');
     Route::get('getFilteredDevices', [LiveviewController::class, 'getFilteredDevices'])->name('liveview.getFilteredDevices');
     Route::post('updateGroup', [LiveviewController::class, 'updateGroup'])->name('liveview.updateGroup');
     Route::resource('liveview', LiveviewController::class);

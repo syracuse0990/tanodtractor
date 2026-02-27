@@ -185,6 +185,94 @@ class LiveviewController extends Controller
         }
     }
 
+    /**
+     * Dashboard version of appendGroupDevices using MaintenanceReportService cache.
+     * Same output format but reads from the 10-min cached device location map.
+     */
+    public function dashboardAppendGroupDevices(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            $roleId = Auth::user()->role_id;
+
+            $groupsQuery = TractorGroup::query();
+            if ($roleId == User::ROLE_SUB_ADMIN) {
+                $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+                $groupsQuery->whereIn('id', $assignedGroups);
+            }
+            $groups = $groupsQuery->latest('id')->get();
+
+            $groupIds = $groups->pluck('id')->toArray();
+            $deviceIdsFromTractors = Tractor::whereIn('group_id', $groupIds)
+                ->whereNotNull('device_id')
+                ->pluck('device_id')
+                ->toArray();
+
+            $deviceIdsFromGroups = $groups->pluck('device_ids')->map(function ($ids) {
+                return $ids ?? [];
+            })->flatten()->toArray();
+
+            $groupDeviceIds = array_values(array_unique(array_merge($deviceIdsFromGroups, $deviceIdsFromTractors)));
+            $allDevices = Device::whereIn('id', $groupDeviceIds)->get()->keyBy('id');
+
+            $tractorDevicesByGroup = Tractor::whereIn('group_id', $groupIds)
+                ->whereNotNull('device_id')
+                ->get(['group_id', 'device_id'])
+                ->groupBy('group_id')
+                ->map(function ($rows) {
+                    return $rows->pluck('device_id')->unique()->values()->toArray();
+                })
+                ->toArray();
+
+            // Use cache instead of fresh API calls
+            $apiDataByImei = (new MaintenanceReportService())->getDeviceLocationMap();
+
+            return response()->stream(function () use ($groups, $allDevices, $tractorDevicesByGroup, $apiDataByImei) {
+                echo "data: " . json_encode(['start' => true]) . "\n\n";
+                ob_flush();
+                flush();
+
+                foreach ($groups as $group) {
+                    $deviceIdsFromGroup = $group->device_ids ? $group->device_ids : [];
+                    $deviceIdsFromTractor = $tractorDevicesByGroup[$group->id] ?? [];
+                    $deviceIds = !empty($deviceIdsFromTractor)
+                        ? $deviceIdsFromTractor
+                        : $deviceIdsFromGroup;
+                    $deviceIds = array_values(array_unique($deviceIds));
+
+                    $deviceImeis = collect($deviceIds)->map(fn($id) => $allDevices[$id]->imei_no ?? null)->filter()->toArray();
+                    $apiData = collect($deviceImeis)
+                        ->map(fn($imei) => $apiDataByImei[$imei] ?? null)
+                        ->filter()
+                        ->values()
+                        ->toArray();
+
+                    if (!empty($apiData)) {
+                        $view = view('live-view.append-group-device', compact('group', 'apiData'))->render();
+                    } else {
+                        $view = '<div class="d-flex justify-content-between my-3">
+                                <div class="d-flex gap-2">No Data Found</div>
+                            </div>';
+                    }
+
+                    echo "data: " . json_encode(['group_id' => $group->id, 'html' => $view]) . "\n\n";
+                    ob_flush();
+                    flush();
+                }
+
+                echo "data: " . json_encode(['end' => true]) . "\n\n";
+                ob_flush();
+                flush();
+            }, 200, [
+                'Content-Type' => 'text/event-stream',
+                'Cache-Control' => 'no-cache',
+                'Connection' => 'keep-alive',
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     public function markersData()
     {
         // Set headers for SSE
@@ -654,6 +742,145 @@ class LiveviewController extends Controller
         return response()->json(['data' => $data]);
     }
 
+    /**
+     * SSE endpoint for dashboard map markers using MaintenanceReportService cache.
+     * Same output format as markersData() but reads from the 10-min cached
+     * device location map instead of making fresh Jimi API calls.
+     */
+    public function dashboardMarkersData()
+    {
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+
+        $gmt_date = gmdate('Y-m-d H:i:s');
+        $userId = Auth::id();
+        $roleId = Auth::user()->role_id;
+
+        // Get cached device location data from MaintenanceReportService
+        $apiDataByImei = (new MaintenanceReportService())->getDeviceLocationMap();
+
+        // Build the same Device query as markersData() for DB enrichment
+        $query = Device::select('id', 'imei_no', 'device_modal', 'device_name', 'subscription_expiration', 'expiration_date', 'sim')
+            ->whereNotNull('activation_time');
+
+        if ($roleId == User::ROLE_SUB_ADMIN) {
+            $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+            $deviceIds = TractorGroup::whereIn('id', $assignedGroups)
+                ->pluck('device_ids')
+                ->flatten()
+                ->toArray();
+            $deviceIds = array_unique($deviceIds);
+            $query->whereIn('id', $deviceIds);
+        }
+
+        $devices = $query->get();
+
+        foreach ($devices as $device) {
+            if (!isset($apiDataByImei[$device->imei_no])) {
+                continue;
+            }
+
+            $tractor = Tractor::where('device_id', $device->id)->first();
+
+            $device['apiData'] = $apiDataByImei[$device->imei_no];
+            $device['tractor'] = $tractor;
+            $device['user'] = User::where('id', $tractor?->driver_id)->first();
+            $device['group'] = TractorGroup::where('id', $tractor?->group_id)->first();
+
+            $diffInSeconds = strtotime($gmt_date) - strtotime($device['apiData']['hbTime']);
+            $days = floor($diffInSeconds / 86400);
+            $hours = floor(($diffInSeconds % 86400) / 3600);
+            $minutes = floor($diffInSeconds / 60);
+            $diff = "0 min";
+            if ($days > 1) {
+                $diff = "{$days} day+";
+            } elseif ($hours > 1) {
+                $diff = "{$hours} hr+";
+            } elseif ($minutes > 1) {
+                $diff = "{$minutes} min";
+            }
+
+            $device['diff'] = $diff;
+            $device['minutes'] = $minutes;
+
+            echo "data: " . json_encode(['device' => $device]) . "\n\n";
+            ob_flush();
+            flush();
+        }
+
+        echo "data: " . json_encode(['end' => true]) . "\n\n";
+        ob_flush();
+        flush();
+        exit;
+    }
+
+    /**
+     * Dashboard version of getDevicesCount using MaintenanceReportService cache.
+     */
+    public function dashboardGetDevicesCount()
+    {
+        $gmt_date = gmdate('Y-m-d H:i:s');
+        $userId = Auth::id();
+        $roleId = Auth::user()->role_id;
+
+        $apiDataByImei = (new MaintenanceReportService())->getDeviceLocationMap();
+
+        $query = Device::select('id', 'imei_no')
+            ->whereNotNull('activation_time');
+
+        if ($roleId == User::ROLE_SUB_ADMIN) {
+            $assignedGroups = AssignedGroup::where('user_id', $userId)->pluck('group_id')->toArray();
+            $deviceIds = TractorGroup::whereIn('id', $assignedGroups)
+                ->pluck('device_ids')
+                ->flatten()
+                ->toArray();
+            $deviceIds = array_unique($deviceIds);
+            $query->whereIn('id', $deviceIds);
+        }
+
+        $devices = $query->get();
+
+        $onlineCount = 0;
+        $offlineCount = 0;
+        $movingCount = 0;
+        $idleCount = 0;
+
+        foreach ($devices as $device) {
+            if (!isset($apiDataByImei[$device->imei_no])) {
+                continue;
+            }
+
+            $apiDevice = $apiDataByImei[$device->imei_no];
+            $diffInSeconds = strtotime($gmt_date) - strtotime($apiDevice['hbTime'] ?? $gmt_date);
+            $minutes = floor($diffInSeconds / 60);
+
+            if ($minutes <= 8) {
+                $onlineCount++;
+            } else {
+                $offlineCount++;
+            }
+
+            if (($apiDevice['status'] ?? 0) == 1 && ($apiDevice['accStatus'] ?? 0) == 1 && !empty($apiDevice['speed'])) {
+                $movingCount++;
+            } elseif (($apiDevice['status'] ?? 0) == 1 && (empty($apiDevice['speed']) || $apiDevice['speed'] == 0)) {
+                $idleCount++;
+            }
+        }
+
+        $inactiveCount = Device::whereNull('activation_time')->count();
+
+        return response()->json([
+            'data' => [
+                'onlineCount' => $onlineCount,
+                'offlineCount' => $offlineCount,
+                'inactiveCount' => $inactiveCount,
+                'movingCount' => $movingCount,
+                'idleCount' => $idleCount,
+            ],
+        ]);
+    }
+
     public function dashboardStats(Request $request)
     {
         $userId = Auth::id();
@@ -759,10 +986,12 @@ class LiveviewController extends Controller
         }
         $feedbackCount = $feedbackQuery->count();
 
-        // Use MaintenanceReportService (cached device location API) for online/offline counts.
+        // Use MaintenanceReportService (cached device location API) for total/online/offline/PMS counts.
+        $totalTractors = 0;
         $onlineCount = 0;
         $offlineCount = 0;
         $inactiveCount = 0;
+        $pmsTractors = 0;
 
         $devicesForCounts = Device::query();
         if ($roleId == User::ROLE_SUB_ADMIN) {
@@ -816,13 +1045,15 @@ class LiveviewController extends Controller
                 ->toArray();
 
             if (!empty($imeis)) {
-                $statusCounts = (new MaintenanceReportService())->getDeviceStatusCounts($imeis);
+                $maintenanceService = new MaintenanceReportService();
+                $statusCounts = $maintenanceService->getDeviceStatusCounts($imeis);
                 $onlineCount  = $statusCounts['online'];
                 $offlineCount = $statusCounts['offline'];
+                $pmsTractors   = $maintenanceService->getPmsCount($imeis, true);
             }
         }
 
-        $totalTractors = count($tractorIds);
+        $totalTractors = $onlineCount + $offlineCount + $inactiveCount;
 
         return response()->json([
             'data' => [
