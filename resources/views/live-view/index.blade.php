@@ -223,7 +223,7 @@
             <div id="map"></div>
             <div id="playbackControl"></div>
             <div class="card" id="clock" style="width: 4rem;bottom: 55px;left: 5px;">
-                <span id="seconds" class="text-center">15s</span>
+                <span id="seconds" class="text-center">20s</span>
             </div>
             <div class="position-relative d-none" id="locate_button"
                 style="width: 6rem;bottom: 65px;left: 5px;/*! border-color: #198754; */">

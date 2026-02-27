@@ -511,7 +511,7 @@
                         <div id="map"></div>
                         <div id="playbackControl"></div>
                         <div class="card" id="clock" style="width: 4rem; bottom: 55px; left: 5px;">
-                            <span id="seconds" class="text-center">15s</span>
+                            <span id="seconds" class="text-center">20s</span>
                         </div>
                         <div class="position-relative d-none" id="locate_button" style="width: 6rem; bottom: 65px; left: 5px;">
                             <button class="btn btn-primary btn-icon text-white btn-sm rounded-pill px-3"
@@ -537,9 +537,10 @@
 
     @push('js')
         <script>
-            // Dashboard: disable realtime polling; manual reload/filter is enough.
-            window.liveviewRefreshIntervalMs = 60000;
-            window.liveviewAutoRefreshEnabled = false;
+            // Dashboard: refresh every 20 seconds from cached endpoints.
+            window.liveviewRefreshIntervalMs = 20000;
+            window.liveviewAutoRefreshEnabled = true;
+            window.liveviewDefaultMapType = 'satellite';
 
             // Use cached MaintenanceReportService endpoints for faster dashboard loading.
             window.liveviewMarkersDataUrl = '{{ route('liveview.dashboardMarkersData') }}';
@@ -753,19 +754,7 @@
                     window.location.href = "{{ route('dashboard') }}";
                 });
 
-                // Keep this scoped to dashboard: once map instance is ready, switch to satellite.
-                (function applySatelliteWhenReady(attemptsLeft = 20) {
-                    if (typeof maps !== 'undefined' && maps['map']) {
-                        maps['map'].setMapTypeId('satellite');
-                        return;
-                    }
-                    if (attemptsLeft <= 0) {
-                        return;
-                    }
-                    setTimeout(function() {
-                        applySatelliteWhenReady(attemptsLeft - 1);
-                    }, 400);
-                })();
+
             });
         </script>
     @endpush

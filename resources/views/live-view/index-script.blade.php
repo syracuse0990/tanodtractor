@@ -34,7 +34,7 @@
     const intervalDuration = 16;
     const pixelsToMovePerInterval = 0.5;
 
-    const liveviewRefreshIntervalMs = Number(window.liveviewRefreshIntervalMs || 15000);
+    const liveviewRefreshIntervalMs = Number(window.liveviewRefreshIntervalMs || 20000);
     const liveviewAutoRefreshEnabled = window.liveviewAutoRefreshEnabled !== false;
     const liveviewRefreshSeconds = Math.max(1, Math.ceil(liveviewRefreshIntervalMs / 1000));
 
@@ -48,6 +48,9 @@
     const redIcon = '{{ asset('assets/img/red_tractor.png') }}';
     const yellowIcon = '{{ asset('assets/img/yellow_tractor.png') }}';
 
+    // Map type preference: dashboard can pre-set this via window.liveviewDefaultMapType
+    const defaultMapType = window.liveviewDefaultMapType || 'roadmap';
+
     //Initialize Map 
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
@@ -56,7 +59,47 @@
                 lng: 121.291831,
             },
             zoom: 5,
+            mapTypeId: defaultMapType,
+            mapTypeControl: false, // We use our own custom control
+            streetViewControl: true,
         });
+
+        // --- Custom Map Type Switcher Control ---
+        const mapTypeControlDiv = document.createElement('div');
+        mapTypeControlDiv.id = 'customMapTypeControl';
+        mapTypeControlDiv.style.cssText = 'display:flex;gap:2px;margin:10px;background:#fff;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.3);overflow:hidden;font-family:Roboto,Arial,sans-serif;font-size:12px;';
+
+        const types = [
+            { id: 'roadmap',   label: 'Map' },
+            { id: 'satellite', label: 'Satellite' },
+            { id: 'terrain',   label: 'Terrain' },
+        ];
+
+        types.forEach(function(t) {
+            const btn = document.createElement('button');
+            btn.textContent = t.label;
+            btn.dataset.maptype = t.id;
+            btn.style.cssText = 'border:none;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:500;transition:background .2s,color .2s;';
+            if (t.id === defaultMapType) {
+                btn.style.background = '#1a73e8';
+                btn.style.color = '#fff';
+            } else {
+                btn.style.background = '#fff';
+                btn.style.color = '#333';
+            }
+            btn.addEventListener('click', function() {
+                map.setMapTypeId(t.id);
+                mapTypeControlDiv.querySelectorAll('button').forEach(function(b) {
+                    b.style.background = '#fff';
+                    b.style.color = '#333';
+                });
+                btn.style.background = '#1a73e8';
+                btn.style.color = '#fff';
+            });
+            mapTypeControlDiv.appendChild(btn);
+        });
+
+        map.controls[google.maps.ControlPosition.TOP_RIGHT].push(mapTypeControlDiv);
 
         createMarkersFunction();
 
