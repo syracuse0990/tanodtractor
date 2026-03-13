@@ -39,6 +39,7 @@
     $maintenanceService = new MaintenanceReportService();
     $statusCounts = $maintenanceService->getDeviceStatusCounts();
     $pmsTractors = $maintenanceService->getPmsCount([], true);
+    $dashboardTotals = $maintenanceService->getDashboardTotals();
     // Total = online + offline + inactive (devices without activation_time)
     $inactiveDevices = Device::whereNull('activation_time')->count();
     $totalTractors = $statusCounts['online'] + $statusCounts['offline'] + $inactiveDevices;
@@ -131,6 +132,8 @@
         .new-dashboard .bg-pms { background: linear-gradient(135deg, #ff7f2a, #f25f2f); }
         .new-dashboard .bg-groups { background: linear-gradient(135deg, #7b2ff7, #9d50ff); }
         .new-dashboard .bg-feedbacks { background: linear-gradient(135deg, #00a1d9, #39b5ff); }
+        .new-dashboard .bg-distance { background: linear-gradient(135deg, #059669, #34d399); }
+        .new-dashboard .bg-hours { background: linear-gradient(135deg, #d97706, #fbbf24); }
         .new-dashboard .section-title {
             background: #007f3d;
             color: #fff;
@@ -349,6 +352,22 @@
                         <div class="stat-card bg-feedbacks">
                             <div class="stat-value" id="kpi-feedbacks">{{ $feedbackCount }}</div>
                             <div class="stat-label">Feedbacks</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a href="{{ route('reports.tractorUsage') }}" class="kpi-link">
+                        <div class="stat-card bg-distance">
+                            <div class="stat-value" id="kpi-distance">{{ number_format($dashboardTotals['total_distance'], 0) }}</div>
+                            <div class="stat-label">Total Distance (km)</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a href="{{ route('reports.tractorUsage') }}" class="kpi-link">
+                        <div class="stat-card bg-hours">
+                            <div class="stat-value" id="kpi-hours">{{ number_format($dashboardTotals['total_hours'], 0) }}</div>
+                            <div class="stat-label">Total Hours (hrs)</div>
                         </div>
                     </a>
                 </div>
@@ -735,6 +754,8 @@
                         const pms = Number(data.pmsTractors || 0);
                         const groups = Number(data.groupsCount || 0);
                         const feedbacks = Number(data.feedbackCount || 0);
+                        const distance = Number(data.totalDistance || 0);
+                        const hours = Number(data.totalHours || 0);
 
                         $('#kpi-total').text(total);
                         $('#kpi-online').text(online);
@@ -744,6 +765,8 @@
                         $('#kpi-pms').text(pms);
                         $('#kpi-groups').text(groups);
                         $('#kpi-feedbacks').text(feedbacks);
+                        $('#kpi-distance').text(distance.toLocaleString());
+                        $('#kpi-hours').text(hours.toLocaleString());
                     }
                 });
             }

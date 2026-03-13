@@ -146,8 +146,11 @@ class MaintenanceReportService
     }
 
     /**
-     * Count devices that need PMS (currentMileage >= 1000 km) from the
-     * cached device-location map (always available, cheap single API call).
+     * Count devices that need PMS based on hours-based logic:
+     * Every 100 hours milestone crossed vs completed maintenances.
+     *
+     * Uses the cached maintenance data (hours from trip records) and
+     * compares against actual maintenance records in the DB.
      *
      * @param  string[]  $filterImeis  Only count these IMEIs (empty = all)
      * @param  bool      $cacheOnly    Kept for signature compatibility (unused)
@@ -155,22 +158,93 @@ class MaintenanceReportService
      */
     public function getPmsCount(array $filterImeis = [], bool $cacheOnly = false): int
     {
-        $deviceMap = $this->getDeviceLocationMap();
-
-        $count = 0;
+        $apiData = $this->getMaintenanceData();
         $filterSet = !empty($filterImeis) ? array_flip($filterImeis) : null;
 
-        foreach ($deviceMap as $imei => $device) {
-            if ($filterSet !== null && !isset($filterSet[$imei])) {
-                continue;
+        // Gather IMEIs to check
+        $entries = [];
+        foreach ($apiData as $device) {
+            $imei = $device['imei'] ?? null;
+            if (!$imei) continue;
+            if ($filterSet !== null && !isset($filterSet[$imei])) continue;
+            $entries[$imei] = $device;
+        }
+
+        if (empty($entries)) return 0;
+
+        // Map IMEIs to tractor IDs for maintenance lookup
+        $tractors = \App\Models\Tractor::whereIn('imei', array_keys($entries))
+            ->pluck('id', 'imei');
+
+        $maintenanceCounts = [];
+        if ($tractors->isNotEmpty()) {
+            $maintenanceCounts = \App\Models\Maintenance::where('state_id', \App\Models\Maintenance::STATE_COMPLETED)
+                ->whereIn('tractor_ids', $tractors->values())
+                ->get()
+                ->groupBy('tractor_ids')
+                ->map->count()
+                ->toArray();
+        }
+
+        $count = 0;
+        foreach ($entries as $imei => $device) {
+            $hours = floatval($device['total_hours'] ?? 0);
+            $distance = floatval($device['odometer_distance'] ?? $device['total_distance'] ?? 0);
+
+            // Apply same hours estimation as report
+            if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
+                $hours = round($distance / 15, 2);
             }
-            $mileage = (float) ($device['currentMileage'] ?? 0);
-            if ($mileage >= 1000) {
+
+            if ($hours <= 0) continue;
+
+            $pmsCount = (int) floor($hours / 100);
+            $tractorId = $tractors->get($imei);
+            $maintenancesDone = $tractorId ? ($maintenanceCounts[$tractorId] ?? 0) : 0;
+
+            if ($pmsCount > $maintenancesDone) {
                 $count++;
             }
         }
 
         return $count;
+    }
+
+    /**
+     * Get dashboard totals (total distance, total hours) from cached maintenance data.
+     *
+     * @param  string[]  $filterImeis  Only sum these IMEIs (empty = all)
+     * @return array{total_distance: float, total_hours: float}
+     */
+    public function getDashboardTotals(array $filterImeis = []): array
+    {
+        $apiData = $this->getMaintenanceData();
+        $filterSet = !empty($filterImeis) ? array_flip($filterImeis) : null;
+
+        $totalDistance = 0;
+        $totalHours = 0;
+
+        foreach ($apiData as $device) {
+            $imei = $device['imei'] ?? null;
+            if (!$imei) continue;
+            if ($filterSet !== null && !isset($filterSet[$imei])) continue;
+
+            $distance = floatval($device['odometer_distance'] ?? $device['total_distance'] ?? 0);
+            $hours = floatval($device['total_hours'] ?? 0);
+
+            // Apply same hours estimation as report
+            if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
+                $hours = round($distance / 15, 2);
+            }
+
+            $totalDistance += $distance;
+            $totalHours += $hours;
+        }
+
+        return [
+            'total_distance' => round($totalDistance, 2),
+            'total_hours' => round($totalHours, 2),
+        ];
     }
 
     /**
