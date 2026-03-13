@@ -34,8 +34,8 @@ class MaintenanceReportService
     private const USER_PWD_MD5 = 'f0f560f1b1be459ffc8ce6979fe7979d';
     private const TOKEN_EXPIRY_HOURS = 2;
 
-    /** IMEIs per batch — balances truncation risk vs total API calls */
-    private const BATCH_SIZE = 50;
+    /** IMEIs per batch — keep small to avoid the 100-record-per-call API cap */
+    private const BATCH_SIZE = 10;
 
     /** Cache duration in minutes */
     private const CACHE_MINUTES = 30;
