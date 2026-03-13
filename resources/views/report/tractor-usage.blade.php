@@ -42,7 +42,7 @@
                         </div>
                         <div class="mt-2 small">
                             <span class="text-success"><i class="fas fa-circle me-1" style="font-size:6px;vertical-align:middle;"></i>{{ $summary['online'] }} online</span>
-                            <span class="text-danger ms-2"><i class="fas fa-circle me-1" style="font-size:6px;vertical-align:middle;"></i>{{ $summary['offline'] }} offline</span>
+                            <!-- <span class="text-danger ms-2"><i class="fas fa-circle me-1" style="font-size:6px;vertical-align:middle;"></i>{{ $summary['offline'] }} offline</span> -->
                         </div>
                     </div>
                 </div>
