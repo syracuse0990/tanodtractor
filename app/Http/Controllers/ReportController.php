@@ -508,14 +508,14 @@ public function maintenanceReports(Request $request)
 
         $allTractors = $query->get();
 
-        // Pre-fetch latest completed maintenance per tractor (avoids N+1)
-        $lastMaintenances = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
+        // Pre-fetch completed maintenances per tractor (avoids N+1)
+        $maintenanceData = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
             ->whereIn('tractor_ids', $allTractors->pluck('id'))
             ->orderByDesc('maintenance_date')
             ->get()
-            ->keyBy('tractor_ids');
+            ->groupBy('tractor_ids');
 
-        $mapped = $allTractors->map(function ($t) use ($apiByImei, $lastMaintenances) {
+        $mapped = $allTractors->map(function ($t) use ($apiByImei, $maintenanceData) {
             $api = $apiByImei->get($t->imei);
 
             $hours = $api ? floatval($api['total_hours']) : 0;
@@ -528,16 +528,20 @@ public function maintenanceReports(Request $request)
             }
 
             // PMS schedule: every 100 hrs (100, 200, 300...)
+            $tractorMaintenances = $maintenanceData->get($t->id, collect());
+            $maintenancesDone = $tractorMaintenances->count();
             $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
             if ($hours == 0) {
                 $pmsStatus = 'No Data';
+            } elseif ($pmsCount > $maintenancesDone) {
+                $pmsStatus = 'Due';
             } else {
-                $nextPms = ceil($hours / 100) * 100;
+                $nextPms = ($maintenancesDone + 1) * 100;
                 $hrsLeft = round($nextPms - $hours, 1);
                 $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
             }
 
-            $lastMaintenance = $lastMaintenances->get($t->id);
+            $lastMaintenance = $tractorMaintenances->first();
 
             // Device status from API
             if (!$api) {
@@ -649,31 +653,40 @@ public function maintenanceReports(Request $request)
 
         $allTractors = $query->get();
 
-        // Pre-fetch latest completed maintenance per tractor (avoids N+1)
-        $lastMaintenances = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
+        // Pre-fetch completed maintenances per tractor (avoids N+1)
+        $maintenanceData = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
             ->whereIn('tractor_ids', $allTractors->pluck('id'))
             ->orderByDesc('maintenance_date')
             ->get()
-            ->keyBy('tractor_ids');
+            ->groupBy('tractor_ids');
 
-        $tractors = $allTractors->map(function ($t) use ($apiByImei, $lastMaintenances) {
+        $tractors = $allTractors->map(function ($t) use ($apiByImei, $maintenanceData) {
             $api = $apiByImei->get($t->imei);
 
             $hours = $api ? floatval($api['total_hours']) : 0;
             // Use odometer (endMileage from trip records) — matches tanod's approach
             $distance = $api ? floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0) : 0;
 
+            // If implied speed exceeds max tractor speed (40 km/h), hours data is incomplete
+            if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
+                $hours = round($distance / 15, 2);
+            }
+
             // PMS schedule: every 100 hrs (100, 200, 300...)
+            $tractorMaintenances = $maintenanceData->get($t->id, collect());
+            $maintenancesDone = $tractorMaintenances->count();
             $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
             if ($hours == 0) {
                 $pmsStatus = 'No Data';
+            } elseif ($pmsCount > $maintenancesDone) {
+                $pmsStatus = 'Due';
             } else {
-                $nextPms = ceil($hours / 100) * 100;
+                $nextPms = ($maintenancesDone + 1) * 100;
                 $hrsLeft = round($nextPms - $hours, 1);
                 $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
             }
 
-            $lastMaintenance = $lastMaintenances->get($t->id);
+            $lastMaintenance = $tractorMaintenances->first();
 
             if (!$api) {
                 $status = 'inactive';
