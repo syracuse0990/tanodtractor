@@ -214,9 +214,13 @@
                         <tr>
                             <td class="ps-4 text-muted small">{{ $tractors->firstItem() + $idx }}</td>
                             <td>
+                                @if($t['id'])
                                 <a href="{{ route('tractors.show', $t['id']) }}" class="fw-semibold text-dark text-decoration-none">
                                     {{ $t['no_plate'] }}
                                 </a>
+                                @else
+                                <span class="fw-semibold text-dark">{{ $t['no_plate'] }}</span>
+                                @endif
                                 <div class="text-muted small">{{ $t['brand'] }} {{ $t['model'] }}</div>
                             </td>
                             <td>

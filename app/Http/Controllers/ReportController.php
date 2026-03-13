@@ -500,27 +500,28 @@ public function maintenanceReports(Request $request)
         $apiData = $maintenanceService->getMaintenanceData();
         $apiByImei = collect($apiData)->keyBy('imei');
 
-        $query = Tractor::with(['group:id,name']);
+        // Start from API devices as the source of truth
+        $dbTractors = Tractor::with(['group:id,name'])->get()->keyBy('imei');
 
         if ($request->group_id) {
-            $query->where('group_id', $request->group_id);
+            // When filtering by group, only include API devices that match a DB tractor in that group
+            $groupImeis = Tractor::where('group_id', $request->group_id)->whereNotNull('imei')->pluck('imei')->toArray();
+            $apiByImei = $apiByImei->only($groupImeis);
         }
 
-        $allTractors = $query->get();
-
         // Pre-fetch completed maintenances per tractor (avoids N+1)
+        $tractorIds = $dbTractors->pluck('id')->filter();
         $maintenanceData = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
-            ->whereIn('tractor_ids', $allTractors->pluck('id'))
+            ->whereIn('tractor_ids', $tractorIds)
             ->orderByDesc('maintenance_date')
             ->get()
             ->groupBy('tractor_ids');
 
-        $mapped = $allTractors->map(function ($t) use ($apiByImei, $maintenanceData) {
-            $api = $apiByImei->get($t->imei);
+        $mapped = $apiByImei->map(function ($api, $imei) use ($dbTractors, $maintenanceData) {
+            $t = $dbTractors->get($imei);
 
-            $hours = $api ? floatval($api['total_hours']) : 0;
-            // Use odometer (endMileage from trip records) — matches tanod's approach
-            $distance = $api ? floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0) : 0;
+            $hours = floatval($api['total_hours'] ?? 0);
+            $distance = floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0);
 
             // If implied speed exceeds max tractor speed (40 km/h), hours data is incomplete
             if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
@@ -528,7 +529,7 @@ public function maintenanceReports(Request $request)
             }
 
             // PMS schedule: every 100 hrs (100, 200, 300...)
-            $tractorMaintenances = $maintenanceData->get($t->id, collect());
+            $tractorMaintenances = $t ? $maintenanceData->get($t->id, collect()) : collect();
             $maintenancesDone = $tractorMaintenances->count();
             $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
             if ($hours == 0) {
@@ -544,20 +545,14 @@ public function maintenanceReports(Request $request)
             $lastMaintenance = $tractorMaintenances->first();
 
             // Device status from API
-            if (!$api) {
-                $status = 'inactive';
-            } elseif ((int) ($api['status'] ?? 0) === 1) {
-                $status = 'online';
-            } else {
-                $status = 'offline';
-            }
+            $status = ((int) ($api['status'] ?? 0) === 1) ? 'online' : 'offline';
 
             return [
-                'id' => $t->id,
-                'no_plate' => $t->no_plate,
-                'brand' => $t->brand,
-                'model' => $t->model,
-                'imei' => $t->imei,
+                'id' => $t->id ?? null,
+                'no_plate' => $t->no_plate ?? ($api['device_name'] ?? $imei),
+                'brand' => $t->brand ?? '',
+                'model' => $t->model ?? '',
+                'imei' => $imei,
                 'group_name' => $t->group->name ?? null,
                 'total_distance' => $distance,
                 'running_hours' => $hours,
@@ -566,7 +561,7 @@ public function maintenanceReports(Request $request)
                 'last_pms_date' => $lastMaintenance?->maintenance_date,
                 'pms_status' => $pmsStatus,
             ];
-        });
+        })->values();
 
         // Apply filters
         $filtered = $mapped;
@@ -645,27 +640,27 @@ public function maintenanceReports(Request $request)
         $apiData = $maintenanceService->getMaintenanceData();
         $apiByImei = collect($apiData)->keyBy('imei');
 
-        $query = Tractor::with(['group:id,name']);
+        // Start from API devices as the source of truth
+        $dbTractors = Tractor::with(['group:id,name'])->get()->keyBy('imei');
 
         if ($request->group_id) {
-            $query->where('group_id', $request->group_id);
+            $groupImeis = Tractor::where('group_id', $request->group_id)->whereNotNull('imei')->pluck('imei')->toArray();
+            $apiByImei = $apiByImei->only($groupImeis);
         }
 
-        $allTractors = $query->get();
-
         // Pre-fetch completed maintenances per tractor (avoids N+1)
+        $tractorIds = $dbTractors->pluck('id')->filter();
         $maintenanceData = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
-            ->whereIn('tractor_ids', $allTractors->pluck('id'))
+            ->whereIn('tractor_ids', $tractorIds)
             ->orderByDesc('maintenance_date')
             ->get()
             ->groupBy('tractor_ids');
 
-        $tractors = $allTractors->map(function ($t) use ($apiByImei, $maintenanceData) {
-            $api = $apiByImei->get($t->imei);
+        $tractors = $apiByImei->map(function ($api, $imei) use ($dbTractors, $maintenanceData) {
+            $t = $dbTractors->get($imei);
 
-            $hours = $api ? floatval($api['total_hours']) : 0;
-            // Use odometer (endMileage from trip records) — matches tanod's approach
-            $distance = $api ? floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0) : 0;
+            $hours = floatval($api['total_hours'] ?? 0);
+            $distance = floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0);
 
             // If implied speed exceeds max tractor speed (40 km/h), hours data is incomplete
             if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
@@ -673,7 +668,7 @@ public function maintenanceReports(Request $request)
             }
 
             // PMS schedule: every 100 hrs (100, 200, 300...)
-            $tractorMaintenances = $maintenanceData->get($t->id, collect());
+            $tractorMaintenances = $t ? $maintenanceData->get($t->id, collect()) : collect();
             $maintenancesDone = $tractorMaintenances->count();
             $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
             if ($hours == 0) {
@@ -687,20 +682,13 @@ public function maintenanceReports(Request $request)
             }
 
             $lastMaintenance = $tractorMaintenances->first();
-
-            if (!$api) {
-                $status = 'inactive';
-            } elseif ((int) ($api['status'] ?? 0) === 1) {
-                $status = 'online';
-            } else {
-                $status = 'offline';
-            }
+            $status = ((int) ($api['status'] ?? 0) === 1) ? 'online' : 'offline';
 
             return [
-                'no_plate' => $t->no_plate,
-                'brand' => $t->brand,
-                'model' => $t->model,
-                'imei' => $t->imei,
+                'no_plate' => $t->no_plate ?? ($api['device_name'] ?? $imei),
+                'brand' => $t->brand ?? '',
+                'model' => $t->model ?? '',
+                'imei' => $imei,
                 'group_name' => $t->group->name ?? null,
                 'total_distance' => $distance,
                 'running_hours' => $hours,
@@ -709,7 +697,7 @@ public function maintenanceReports(Request $request)
                 'last_pms_date' => $lastMaintenance?->maintenance_date,
                 'pms_status' => $pmsStatus,
             ];
-        });
+        })->values();
 
         $pmsDueCount = $tractors->where('pms_status', 'Due')->count();
         $summary = [
