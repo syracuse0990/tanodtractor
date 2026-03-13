@@ -28,7 +28,7 @@
         {{-- Summary Cards --}}
         <div class="row g-3 mb-4">
             {{-- Total Tractors --}}
-            <div class="col-sm-6 col-lg">
+            <div class="col-sm-3 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
@@ -42,14 +42,14 @@
                         </div>
                         <div class="mt-3 d-flex gap-2" style="font-size:12px;">
                             <span class="d-inline-flex align-items-center gap-1 text-success"><span class="rounded-circle d-inline-block" style="width:6px;height:6px;background:#22c55e;"></span>{{ $summary['online'] }} online</span>
-                            <span class="d-inline-flex align-items-center gap-1 text-danger"><span class="rounded-circle d-inline-block" style="width:6px;height:6px;background:#ef4444;"></span>{{ $summary['offline'] }} offline</span>
+                            <!-- <span class="d-inline-flex align-items-center gap-1 text-danger"><span class="rounded-circle d-inline-block" style="width:6px;height:6px;background:#ef4444;"></span>{{ $summary['offline'] }} offline</span> -->
                         </div>
                     </div>
                 </div>
             </div>
 
             {{-- Total Distance --}}
-            <div class="col-sm-6 col-lg">
+            <div class="col-sm-2 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
@@ -67,7 +67,7 @@
             </div>
 
             {{-- Running Hours --}}
-            <div class="col-sm-6 col-lg">
+            <div class="col-sm-2 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
@@ -85,7 +85,7 @@
             </div>
 
             {{-- With Usage Data --}}
-            <div class="col-sm-6 col-lg">
+            <div class="col-sm-2 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
@@ -108,7 +108,7 @@
             </div>
 
             {{-- PMS Due --}}
-            <div class="col-sm-6 col-lg">
+            <div class="col-sm-2 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
