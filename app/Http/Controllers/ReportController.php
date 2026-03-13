@@ -485,18 +485,22 @@ public function maintenanceReports(Request $request)
         return view('report.api-documentation');
     }
 
-    public function tractorUsage(Request $request)
+    public function tractorUsage(Request $request, MaintenanceReportService $maintenanceService)
     {
         $request->validate([
             'group_id' => 'nullable|exists:tractor_groups,id',
             'search' => 'nullable|string|max:255',
             'status' => 'nullable|in:online,offline,inactive',
             'pms' => 'nullable|in:due,ok,nodata',
-            'sort' => 'nullable|in:no_plate,total_distance,running_km',
+            'sort' => 'nullable|in:no_plate,total_distance,running_hours',
             'dir' => 'nullable|in:asc,desc',
         ]);
 
-        $query = Tractor::with(['group:id,name', 'device']);
+        // Fetch real-time data from TrackSolidPro API (cached 30 min)
+        $apiData = $maintenanceService->getMaintenanceData();
+        $apiByImei = collect($apiData)->keyBy('imei');
+
+        $query = Tractor::with(['group:id,name']);
 
         if ($request->group_id) {
             $query->where('group_id', $request->group_id);
@@ -504,9 +508,19 @@ public function maintenanceReports(Request $request)
 
         $allTractors = $query->get();
 
-        $mapped = $allTractors->map(function ($t) {
-            $device = $t->device;
-            $hours = floatval($t->running_km ?? 0);
+        // Pre-fetch latest completed maintenance per tractor (avoids N+1)
+        $lastMaintenances = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
+            ->whereIn('tractor_ids', $allTractors->pluck('id'))
+            ->orderByDesc('maintenance_date')
+            ->get()
+            ->keyBy('tractor_ids');
+
+        $mapped = $allTractors->map(function ($t) use ($apiByImei, $lastMaintenances) {
+            $api = $apiByImei->get($t->imei);
+
+            $hours = $api ? floatval($api['total_hours']) : 0;
+            // Use odometer (endMileage from trip records) — matches tanod's approach
+            $distance = $api ? floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0) : 0;
 
             // PMS schedule: first at 50 hrs, then every 100 hrs (150, 250, 350...)
             if ($hours == 0) {
@@ -517,16 +531,12 @@ public function maintenanceReports(Request $request)
                 $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
             }
 
-            // Last completed maintenance
-            $lastMaintenance = Maintenance::where('tractor_ids', $t->id)
-                ->where('state_id', Maintenance::STATE_COMPLETED)
-                ->latest('maintenance_date')
-                ->first();
+            $lastMaintenance = $lastMaintenances->get($t->id);
 
-            // Device status
-            if (!$device) {
+            // Device status from API
+            if (!$api) {
                 $status = 'inactive';
-            } elseif ($device->state_id == Device::STATE_ACTIVE && $device->expiration_date > now()) {
+            } elseif ((int) ($api['status'] ?? 0) === 1) {
                 $status = 'online';
             } else {
                 $status = 'offline';
@@ -539,7 +549,7 @@ public function maintenanceReports(Request $request)
                 'model' => $t->model,
                 'imei' => $t->imei,
                 'group_name' => $t->group->name ?? null,
-                'total_distance' => floatval($t->total_distance ?? 0),
+                'total_distance' => $distance,
                 'running_hours' => $hours,
                 'status' => $status,
                 'last_pms_date' => $lastMaintenance?->maintenance_date,
@@ -614,21 +624,37 @@ public function maintenanceReports(Request $request)
         return view('report.tractor-usage', compact('tractors', 'groups', 'summary'));
     }
 
-    public function exportTractorUsage(Request $request)
+    public function exportTractorUsage(Request $request, MaintenanceReportService $maintenanceService)
     {
         $request->validate([
             'group_id' => 'nullable|exists:tractor_groups,id',
         ]);
 
-        $query = Tractor::with(['group:id,name', 'device']);
+        // Fetch real-time data from TrackSolidPro API (cached 30 min)
+        $apiData = $maintenanceService->getMaintenanceData();
+        $apiByImei = collect($apiData)->keyBy('imei');
+
+        $query = Tractor::with(['group:id,name']);
 
         if ($request->group_id) {
             $query->where('group_id', $request->group_id);
         }
 
-        $tractors = $query->get()->map(function ($t) {
-            $device = $t->device;
-            $hours = floatval($t->running_km ?? 0);
+        $allTractors = $query->get();
+
+        // Pre-fetch latest completed maintenance per tractor (avoids N+1)
+        $lastMaintenances = Maintenance::where('state_id', Maintenance::STATE_COMPLETED)
+            ->whereIn('tractor_ids', $allTractors->pluck('id'))
+            ->orderByDesc('maintenance_date')
+            ->get()
+            ->keyBy('tractor_ids');
+
+        $tractors = $allTractors->map(function ($t) use ($apiByImei, $lastMaintenances) {
+            $api = $apiByImei->get($t->imei);
+
+            $hours = $api ? floatval($api['total_hours']) : 0;
+            // Use odometer (endMileage from trip records) — matches tanod's approach
+            $distance = $api ? floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0) : 0;
 
             if ($hours == 0) {
                 $pmsStatus = 'No Data';
@@ -638,14 +664,11 @@ public function maintenanceReports(Request $request)
                 $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
             }
 
-            $lastMaintenance = Maintenance::where('tractor_ids', $t->id)
-                ->where('state_id', Maintenance::STATE_COMPLETED)
-                ->latest('maintenance_date')
-                ->first();
+            $lastMaintenance = $lastMaintenances->get($t->id);
 
-            if (!$device) {
+            if (!$api) {
                 $status = 'inactive';
-            } elseif ($device->state_id == Device::STATE_ACTIVE && $device->expiration_date > now()) {
+            } elseif ((int) ($api['status'] ?? 0) === 1) {
                 $status = 'online';
             } else {
                 $status = 'offline';
@@ -657,7 +680,7 @@ public function maintenanceReports(Request $request)
                 'model' => $t->model,
                 'imei' => $t->imei,
                 'group_name' => $t->group->name ?? null,
-                'total_distance' => floatval($t->total_distance ?? 0),
+                'total_distance' => $distance,
                 'running_hours' => $hours,
                 'status' => $status,
                 'last_pms_date' => $lastMaintenance?->maintenance_date,

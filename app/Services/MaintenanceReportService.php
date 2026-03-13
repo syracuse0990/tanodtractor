@@ -312,16 +312,18 @@ class MaintenanceReportService
      * IMEI individually (concurrency = 5) to avoid truncation.
      *
      * @param array $deviceMap  IMEI => device data
-     * @return array  IMEI => ['hours' => float, 'distance' => float]
+     * @return array  IMEI => ['hours' => float, 'distance' => float, 'odometer' => float]
      */
     private function fetchMileageTotals(array $deviceMap): array
     {
         // Initialize: distance from hardware odometer, hours will be summed from trip records
+        // odometer tracks the highest endMileage from trip records (cumulative hardware odometer)
         $totals = [];
         foreach ($deviceMap as $imei => $device) {
             $totals[$imei] = [
                 'hours' => 0,
                 'distance' => round((float)($device['currentMileage'] ?? 0), 2),
+                'odometer' => 0,
             ];
         }
 
@@ -426,6 +428,12 @@ class MaintenanceReportService
                     $imei = $trip['imei'] ?? null;
                     if ($imei && isset($totals[$imei])) {
                         $hoursByImei[$imei] = ($hoursByImei[$imei] ?? 0) + (((int)($trip['runTimeSecond'] ?? 0)) / 3600);
+
+                        // Track cumulative hardware odometer (endMileage in meters → km)
+                        $endMileage = (float) ($trip['endMileage'] ?? 0) / 1000;
+                        if ($endMileage > $totals[$imei]['odometer']) {
+                            $totals[$imei]['odometer'] = round($endMileage, 2);
+                        }
                     }
                 }
                 foreach ($hoursByImei as $imei => $hours) {
@@ -462,6 +470,7 @@ class MaintenanceReportService
                 'vehicleNumber'  => $device['vehicleNumber'] ?? null,
                 'total_hours'    => $totalHours,
                 'total_distance' => $totalDistance,
+                'odometer_distance' => $mileageTotals[$imei]['odometer'] ?? 0,
                 'needs_pms'      => $totalHours >= 5 && $totalHours > 0,
                 'status'         => $device['status'] ?? '0',
                 'last_active'    => $device['hbTime'] ?? null,
