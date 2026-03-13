@@ -997,7 +997,6 @@ class LiveviewController extends Controller
         $offlineCount = 0;
         $inactiveCount = 0;
         $pmsTractors = 0;
-        $dashboardTotals = ['total_distance' => 0, 'total_hours' => 0];
 
         $devicesForCounts = Device::query();
         if ($roleId == User::ROLE_SUB_ADMIN) {
@@ -1056,7 +1055,6 @@ class LiveviewController extends Controller
                 $onlineCount  = $statusCounts['online'];
                 $offlineCount = $statusCounts['offline'];
                 $pmsTractors   = $maintenanceService->getPmsCount($imeis, true);
-                $dashboardTotals = $maintenanceService->getDashboardTotals($imeis);
             }
         }
 
@@ -1072,8 +1070,6 @@ class LiveviewController extends Controller
                 'pmsTractors' => $pmsTractors,
                 'groupsCount' => $groupsCount,
                 'feedbackCount' => $feedbackCount,
-                'totalDistance' => $dashboardTotals['total_distance'] ?? 0,
-                'totalHours' => $dashboardTotals['total_hours'] ?? 0,
             ],
         ]);
     }
