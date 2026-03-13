@@ -361,21 +361,21 @@
                                     <div class="accordion-item bg-transparent border-0">
                                         <h2 class="accordion-header m-0" id="panelsStayOpen-headingOne">
                                             <button class="accordion-button bg-transparent border-0 shadow-none
-                                                {{ request()->is('reports*') || request()->is('maintenance-reports*') || request()->is('device-reports*') ? 'parent-active' : 'collapsed' }}"
+                                                {{ request()->is('reports*') || request()->is('maintenance-reports*') || request()->is('device-reports*') || request()->is('tractor-usage*') ? 'parent-active' : 'collapsed' }}"
                                                 type="button" data-bs-toggle="collapse"
                                                 data-bs-target="#panelsStayOpen-collapseOne"
-                                                aria-expanded="{{ request()->is('reports*') || request()->is('maintenance-reports*') || request()->is('device-reports*') ? 'true' : 'false' }}"
+                                                aria-expanded="{{ request()->is('reports*') || request()->is('maintenance-reports*') || request()->is('device-reports*') || request()->is('tractor-usage*') ? 'true' : 'false' }}"
                                                 aria-controls="panelsStayOpen-collapseOne">
                                                 <i class="fa-fw fa-solid fa-chart-line"></i>
                                                 <span class="nav-label">Reports & Analytics</span>
                                             </button>
                                         </h2>
                                         <div id="panelsStayOpen-collapseOne"
-                                             class="accordion-collapse collapse {{ request()->is('reports*') || request()->is('maintenance-reports*') || request()->is('device-reports*') ? 'show' : '' }}"
+                                             class="accordion-collapse collapse {{ request()->is('reports*') || request()->is('maintenance-reports*') || request()->is('device-reports*') || request()->is('tractor-usage*') ? 'show' : '' }}"
                                              aria-labelledby="panelsStayOpen-headingOne">
                                             <div class="accordion-body">
                                                 <a href="{{ route('reports.index') }}"
-                                                   class="{{ request()->is('reports*') ? 'active' : '' }}">
+                                                   class="{{ request()->is('reports*') && !request()->is('reports/*') ? 'active' : '' }}">
                                                     <i class="fa-fw fa-solid fa-chart-bar"></i>
                                                     <span>Reports</span>
                                                 </a>
@@ -392,6 +392,13 @@
                                                    class="{{ request()->is('device-reports*') ? 'active' : '' }}">
                                                     <i class="fa-fw fa-solid fa-chart-pie"></i>
                                                     <span>Device Reports</span>
+                                                </a>
+                                            </div>
+                                            <div class="accordion-body">
+                                                <a href="{{ route('reports.tractorUsage') }}"
+                                                   class="{{ request()->is('tractor-usage*') ? 'active' : '' }}">
+                                                    <i class="fa-fw fa-solid fa-tractor"></i>
+                                                    <span>Tractor Usage</span>
                                                 </a>
                                             </div>
                                         </div>

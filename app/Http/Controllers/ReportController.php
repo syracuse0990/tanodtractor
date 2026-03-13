@@ -21,6 +21,8 @@ use App\Services\TrackSolidProService;
 use App\Services\JimiService;
 use App\Services\MaintenanceReportService;
 use App\Exports\MaintenanceReportExport;
+use App\Exports\TractorUsageExport;
+use App\Models\TractorGroup;
 use Maatwebsite\Excel\Facades\Excel;
 
 
@@ -483,7 +485,201 @@ public function maintenanceReports(Request $request)
         return view('report.api-documentation');
     }
 
+    public function tractorUsage(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'nullable|exists:tractor_groups,id',
+            'search' => 'nullable|string|max:255',
+            'status' => 'nullable|in:online,offline,inactive',
+            'pms' => 'nullable|in:due,ok,nodata',
+            'sort' => 'nullable|in:no_plate,total_distance,running_km',
+            'dir' => 'nullable|in:asc,desc',
+        ]);
 
+        $query = Tractor::with(['group:id,name', 'device']);
 
+        if ($request->group_id) {
+            $query->where('group_id', $request->group_id);
+        }
+
+        $allTractors = $query->get();
+
+        $mapped = $allTractors->map(function ($t) {
+            $device = $t->device;
+            $hours = floatval($t->running_km ?? 0);
+
+            // PMS schedule: first at 50 hrs, then every 100 hrs (150, 250, 350...)
+            if ($hours == 0) {
+                $pmsStatus = 'No Data';
+            } else {
+                $nextPms = $hours < 50 ? 50 : 50 + ceil(($hours - 50) / 100) * 100;
+                $hrsLeft = round($nextPms - $hours, 1);
+                $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
+            }
+
+            // Last completed maintenance
+            $lastMaintenance = Maintenance::where('tractor_ids', $t->id)
+                ->where('state_id', Maintenance::STATE_COMPLETED)
+                ->latest('maintenance_date')
+                ->first();
+
+            // Device status
+            if (!$device) {
+                $status = 'inactive';
+            } elseif ($device->state_id == Device::STATE_ACTIVE && $device->expiration_date > now()) {
+                $status = 'online';
+            } else {
+                $status = 'offline';
+            }
+
+            return [
+                'id' => $t->id,
+                'no_plate' => $t->no_plate,
+                'brand' => $t->brand,
+                'model' => $t->model,
+                'imei' => $t->imei,
+                'group_name' => $t->group->name ?? null,
+                'total_distance' => floatval($t->total_distance ?? 0),
+                'running_hours' => $hours,
+                'status' => $status,
+                'last_pms_date' => $lastMaintenance?->maintenance_date,
+                'pms_status' => $pmsStatus,
+            ];
+        });
+
+        // Apply filters
+        $filtered = $mapped;
+
+        if ($search = $request->search) {
+            $search = strtolower($search);
+            $filtered = $filtered->filter(fn($t) =>
+                str_contains(strtolower($t['no_plate'] ?? ''), $search) ||
+                str_contains(strtolower($t['brand'] ?? ''), $search) ||
+                str_contains(strtolower($t['model'] ?? ''), $search) ||
+                str_contains($t['imei'] ?? '', $search) ||
+                str_contains(strtolower($t['group_name'] ?? ''), $search)
+            );
+        }
+
+        if ($request->status) {
+            $filtered = $filtered->where('status', $request->status);
+        }
+
+        if ($request->pms) {
+            $filtered = match ($request->pms) {
+                'due' => $filtered->where('pms_status', 'Due'),
+                'nodata' => $filtered->where('pms_status', 'No Data'),
+                'ok' => $filtered->filter(fn($t) => $t['pms_status'] !== 'Due' && $t['pms_status'] !== 'No Data'),
+            };
+        }
+
+        // Sort
+        $sortField = $request->sort ?? 'total_distance';
+        $sortDir = $request->dir ?? 'desc';
+        $filtered = $sortDir === 'asc' ? $filtered->sortBy($sortField) : $filtered->sortByDesc($sortField);
+
+        // Summary from full set (before search/status/pms filters)
+        $onlineCount = $mapped->where('status', 'online')->count();
+        $offlineCount = $mapped->where('status', 'offline')->count();
+        $withData = $mapped->filter(fn($t) => $t['total_distance'] > 0 || $t['running_hours'] > 0)->count();
+        $totalTractors = $mapped->count();
+
+        $summary = [
+            'total_tractors' => $totalTractors,
+            'total_distance' => $mapped->sum('total_distance'),
+            'total_hours' => $mapped->sum('running_hours'),
+            'avg_distance' => $totalTractors > 0 ? $mapped->avg('total_distance') : 0,
+            'pms_due' => $mapped->where('pms_status', 'Due')->count(),
+            'total_maintenances' => Maintenance::count(),
+            'online' => $onlineCount,
+            'offline' => $offlineCount,
+            'with_data' => $withData,
+            'data_percent' => $totalTractors > 0 ? round($withData / $totalTractors * 100) : 0,
+        ];
+
+        $groups = TractorGroup::get(['id', 'name']);
+
+        // Paginate
+        $page = $request->get('page', 1);
+        $perPage = 25;
+        $filteredValues = $filtered->values();
+        $tractors = new LengthAwarePaginator(
+            $filteredValues->forPage($page, $perPage),
+            $filteredValues->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('report.tractor-usage', compact('tractors', 'groups', 'summary'));
+    }
+
+    public function exportTractorUsage(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'nullable|exists:tractor_groups,id',
+        ]);
+
+        $query = Tractor::with(['group:id,name', 'device']);
+
+        if ($request->group_id) {
+            $query->where('group_id', $request->group_id);
+        }
+
+        $tractors = $query->get()->map(function ($t) {
+            $device = $t->device;
+            $hours = floatval($t->running_km ?? 0);
+
+            if ($hours == 0) {
+                $pmsStatus = 'No Data';
+            } else {
+                $nextPms = $hours < 50 ? 50 : 50 + ceil(($hours - 50) / 100) * 100;
+                $hrsLeft = round($nextPms - $hours, 1);
+                $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
+            }
+
+            $lastMaintenance = Maintenance::where('tractor_ids', $t->id)
+                ->where('state_id', Maintenance::STATE_COMPLETED)
+                ->latest('maintenance_date')
+                ->first();
+
+            if (!$device) {
+                $status = 'inactive';
+            } elseif ($device->state_id == Device::STATE_ACTIVE && $device->expiration_date > now()) {
+                $status = 'online';
+            } else {
+                $status = 'offline';
+            }
+
+            return [
+                'no_plate' => $t->no_plate,
+                'brand' => $t->brand,
+                'model' => $t->model,
+                'imei' => $t->imei,
+                'group_name' => $t->group->name ?? null,
+                'total_distance' => floatval($t->total_distance ?? 0),
+                'running_hours' => $hours,
+                'status' => $status,
+                'last_pms_date' => $lastMaintenance?->maintenance_date,
+                'pms_status' => $pmsStatus,
+            ];
+        });
+
+        $pmsDueCount = $tractors->where('pms_status', 'Due')->count();
+        $summary = [
+            'total_tractors' => $tractors->count(),
+            'total_distance' => $tractors->sum('total_distance'),
+            'total_hours' => $tractors->sum('running_hours'),
+            'pms_due' => $pmsDueCount,
+            'total_maintenances' => Maintenance::count(),
+        ];
+
+        $filename = 'tractor-usage-report-' . now()->format('Y-m-d') . '.xlsx';
+
+        return Excel::download(
+            new TractorUsageExport($tractors->toArray(), $summary),
+            $filename
+        );
+    }
 
 }

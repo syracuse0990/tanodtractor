@@ -97,6 +97,8 @@ Route::middleware([
     Route::get('/api-documentation', [ReportController::class, 'apiDocumentation'])->name('reports.apiDocumentation');
 
     Route::get('/device-reports', [ReportController::class, 'deviceReports'])->name('reports.deviceReports');
+    Route::get('/tractor-usage', [ReportController::class, 'tractorUsage'])->name('reports.tractorUsage');
+    Route::get('/tractor-usage/export', [ReportController::class, 'exportTractorUsage'])->name('reports.exportTractorUsage');
 
     //Device Routes
     Route::get('export-device', [DeviceController::class, 'export'])->name('devices.export-device');
