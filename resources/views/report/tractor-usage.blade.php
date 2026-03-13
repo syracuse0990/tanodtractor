@@ -28,99 +28,99 @@
         {{-- Summary Cards --}}
         <div class="row g-3 mb-4">
             {{-- Total Tractors --}}
-            <div class="col-sm-3 col-lg">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
+            <div class="col-sm-6 col-lg">
+                <div class="card rounded-4 border h-100">
+                    <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-3 bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
-                                <i class="fas fa-tractor text-primary fs-5"></i>
+                            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:#eff6ff;">
+                                <svg width="24" height="24" fill="none" stroke="#2563eb" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                             </div>
                             <div>
                                 <p class="text-muted small mb-0">Total Tractors</p>
                                 <h4 class="fw-bold mb-0">{{ number_format($summary['total_tractors']) }}</h4>
                             </div>
                         </div>
-                        <div class="mt-2 small">
-                            <span class="text-success"><i class="fas fa-circle me-1" style="font-size:6px;vertical-align:middle;"></i>{{ $summary['online'] }} online</span>
-                            <!-- <span class="text-danger ms-2"><i class="fas fa-circle me-1" style="font-size:6px;vertical-align:middle;"></i>{{ $summary['offline'] }} offline</span> -->
+                        <div class="mt-3 d-flex gap-2" style="font-size:12px;">
+                            <span class="d-inline-flex align-items-center gap-1 text-success"><span class="rounded-circle d-inline-block" style="width:6px;height:6px;background:#22c55e;"></span>{{ $summary['online'] }} online</span>
+                            <span class="d-inline-flex align-items-center gap-1 text-danger"><span class="rounded-circle d-inline-block" style="width:6px;height:6px;background:#ef4444;"></span>{{ $summary['offline'] }} offline</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             {{-- Total Distance --}}
-            <div class="col-sm-3 col-lg">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
+            <div class="col-sm-6 col-lg">
+                <div class="card rounded-4 border h-100">
+                    <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-3 bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
-                                <i class="fas fa-route text-success fs-5"></i>
+                            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:#ecfdf5;">
+                                <svg width="24" height="24" fill="none" stroke="#059669" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
                             </div>
                             <div>
                                 <p class="text-muted small mb-0">Total Distance</p>
                                 <h4 class="fw-bold mb-0">{{ number_format($summary['total_distance'], 2) }} <small class="fw-normal text-muted">km</small></h4>
                             </div>
                         </div>
-                        <div class="mt-2 text-muted small">Avg {{ number_format($summary['avg_distance'], 2) }} km / tractor</div>
+                        <div class="mt-3 text-muted" style="font-size:12px;">Avg {{ number_format($summary['avg_distance'], 2) }} km / tractor</div>
                     </div>
                 </div>
             </div>
 
             {{-- Running Hours --}}
-            <div class="col-sm-3 col-lg">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
+            <div class="col-sm-6 col-lg">
+                <div class="card rounded-4 border h-100">
+                    <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-3 bg-warning bg-opacity-10 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
-                                <i class="fas fa-clock text-warning fs-5"></i>
+                            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:#fffbeb;">
+                                <svg width="24" height="24" fill="none" stroke="#d97706" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </div>
                             <div>
                                 <p class="text-muted small mb-0">Running Hours</p>
                                 <h4 class="fw-bold mb-0">{{ number_format($summary['total_hours'], 2) }} <small class="fw-normal text-muted">hrs</small></h4>
                             </div>
                         </div>
-                        <div class="mt-2 text-muted small">Avg {{ $summary['total_tractors'] > 0 ? number_format($summary['total_hours'] / $summary['total_tractors'], 1) : 0 }} hrs / tractor</div>
+                        <div class="mt-3 text-muted" style="font-size:12px;">Avg {{ $summary['total_tractors'] > 0 ? number_format($summary['total_hours'] / $summary['total_tractors'], 1) : 0 }} hrs / tractor</div>
                     </div>
                 </div>
             </div>
 
             {{-- With Usage Data --}}
-            <div class="col-sm-3 col-lg">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
+            <div class="col-sm-6 col-lg">
+                <div class="card rounded-4 border h-100">
+                    <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-3 bg-info bg-opacity-10 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
-                                <i class="fas fa-chart-bar text-info fs-5"></i>
+                            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:#faf5ff;">
+                                <svg width="24" height="24" fill="none" stroke="#7c3aed" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                             </div>
                             <div>
                                 <p class="text-muted small mb-0">With Usage Data</p>
                                 <h4 class="fw-bold mb-0">{{ $summary['with_data'] }}</h4>
                             </div>
                         </div>
-                        <div class="mt-2">
+                        <div class="mt-3">
                             <div class="progress" style="height:6px;">
-                                <div class="progress-bar bg-info" style="width:{{ $summary['data_percent'] }}%"></div>
+                                <div class="progress-bar" style="width:{{ $summary['data_percent'] }}%;background:#8b5cf6;"></div>
                             </div>
-                            <p class="text-muted small mt-1 mb-0">{{ $summary['data_percent'] }}% of fleet reporting</p>
+                            <p class="text-muted mt-1 mb-0" style="font-size:12px;">{{ $summary['data_percent'] }}% of fleet reporting</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {{-- PMS Due --}}
-            <div class="col-sm-3 col-lg">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
+            <div class="col-sm-6 col-lg">
+                <div class="card rounded-4 border h-100">
+                    <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-3 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
-                                <i class="fas fa-cogs text-danger fs-5"></i>
+                            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:48px;height:48px;background:#fff7ed;">
+                                <svg width="24" height="24" fill="none" stroke="#ea580c" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             </div>
                             <div>
                                 <p class="text-muted small mb-0">PMS Due</p>
                                 <h4 class="fw-bold mb-0 {{ $summary['pms_due'] > 0 ? 'text-danger' : '' }}">{{ $summary['pms_due'] }}</h4>
                             </div>
                         </div>
-                        <div class="mt-2 text-muted small">{{ $summary['total_maintenances'] }} total maintenance records</div>
+                        <div class="mt-3 text-muted" style="font-size:12px;">{{ $summary['total_maintenances'] }} total maintenance records</div>
                     </div>
                 </div>
             </div>
