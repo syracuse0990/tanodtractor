@@ -17,14 +17,14 @@
 
             <div>
                 <x-label for="email" class="form-label" value="{{ __('Email') }}" />
-                <x-input id="email" class="form-control" type="text" name="email" :value="old('email', 'tractor@tanod.com')" required
+                <x-input id="email" class="form-control" type="text" name="email" value="" required
                     autofocus autocomplete="username" />
             </div>
 
             <div class="mt-3 position-relative password-field-wrapper">
                 <x-label for="password" class="form-label" value="{{ __('Password') }}" />
                 <x-input id="password" class="form-control" type="password" name="password" required
-                    autocomplete="current-password" value="tanod@2025" />
+                    autocomplete="current-password" value="" />
                 <span onclick="password_show_hide();" class="toggle-eye">
                     <i class="fas fa-eye" id="show_eye"></i>
                     <i class="fas fa-eye-slash d-none" id="hide_eye"></i>
