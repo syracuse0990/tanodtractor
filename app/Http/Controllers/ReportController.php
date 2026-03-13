@@ -522,17 +522,17 @@ public function maintenanceReports(Request $request)
             // Use odometer (endMileage from trip records) — matches tanod's approach
             $distance = $api ? floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0) : 0;
 
-            // Estimate hours from distance when API hours are unrealistically low
-            // Average tractor speed ~10 km/h; use estimate if reported hours < 10% of expected
-            if ($distance > 0 && $hours < ($distance / 10) * 0.1) {
-                $hours = round($distance / 10, 2);
+            // If implied speed exceeds max tractor speed (40 km/h), hours data is incomplete
+            if ($distance > 0 && ($hours <= 0 || $distance / $hours > 40)) {
+                $hours = round($distance / 15, 2);
             }
 
-            // PMS schedule: first at 50 hrs, then every 100 hrs (150, 250, 350...)
+            // PMS schedule: every 100 hrs (100, 200, 300...)
+            $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
             if ($hours == 0) {
                 $pmsStatus = 'No Data';
             } else {
-                $nextPms = $hours < 50 ? 50 : 50 + ceil(($hours - 50) / 100) * 100;
+                $nextPms = ceil($hours / 100) * 100;
                 $hrsLeft = round($nextPms - $hours, 1);
                 $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
             }
@@ -557,6 +557,7 @@ public function maintenanceReports(Request $request)
                 'group_name' => $t->group->name ?? null,
                 'total_distance' => $distance,
                 'running_hours' => $hours,
+                'pms_count' => $pmsCount,
                 'status' => $status,
                 'last_pms_date' => $lastMaintenance?->maintenance_date,
                 'pms_status' => $pmsStatus,
@@ -662,16 +663,12 @@ public function maintenanceReports(Request $request)
             // Use odometer (endMileage from trip records) — matches tanod's approach
             $distance = $api ? floatval($api['odometer_distance'] ?? $api['total_distance'] ?? 0) : 0;
 
-            // Estimate hours from distance when API hours are unrealistically low
-            // Average tractor speed ~10 km/h; use estimate if reported hours < 10% of expected
-            if ($distance > 0 && $hours < ($distance / 10) * 0.1) {
-                $hours = round($distance / 10, 2);
-            }
-
+            // PMS schedule: every 100 hrs (100, 200, 300...)
+            $pmsCount = $hours > 0 ? (int) floor($hours / 100) : 0;
             if ($hours == 0) {
                 $pmsStatus = 'No Data';
             } else {
-                $nextPms = $hours < 50 ? 50 : 50 + ceil(($hours - 50) / 100) * 100;
+                $nextPms = ceil($hours / 100) * 100;
                 $hrsLeft = round($nextPms - $hours, 1);
                 $pmsStatus = $hrsLeft <= 0 ? 'Due' : $hrsLeft . ' hrs left';
             }
@@ -694,6 +691,7 @@ public function maintenanceReports(Request $request)
                 'group_name' => $t->group->name ?? null,
                 'total_distance' => $distance,
                 'running_hours' => $hours,
+                'pms_count' => $pmsCount,
                 'status' => $status,
                 'last_pms_date' => $lastMaintenance?->maintenance_date,
                 'pms_status' => $pmsStatus,

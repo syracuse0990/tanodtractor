@@ -126,6 +126,9 @@
             </div>
         </div>
 
+        {{-- Disclaimer --}}
+        <p class="text-muted small fst-italic mb-3">* Some total hours are computed from total distance using statistical correlation.</p>
+
         {{-- Filters --}}
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body py-3">
@@ -229,11 +232,11 @@
                             <td class="text-center small text-muted">{{ $t['last_pms_date'] ?: 'Never' }}</td>
                             <td class="text-center">
                                 @if($t['pms_status'] === 'Due')
-                                    <span class="badge bg-danger">Due Now</span>
+                                    <span class="badge bg-danger">{{ $t['pms_count'] > 0 ? $t['pms_count'] . 'x · ' : '' }}Due Now</span>
                                 @elseif($t['pms_status'] === 'No Data')
                                     <span class="text-muted small">—</span>
                                 @else
-                                    <span class="badge bg-success bg-opacity-75">{{ $t['pms_status'] }}</span>
+                                    <span class="badge bg-success bg-opacity-75">{{ $t['pms_count'] > 0 ? $t['pms_count'] . 'x · ' : '' }}{{ $t['pms_status'] }}</span>
                                 @endif
                             </td>
                             <td class="text-center pe-4">
@@ -269,6 +272,9 @@
                 </table>
             </div>
         </div>
+
+        {{-- Disclaimer --}}
+        <p class="text-muted small fst-italic text-center mt-3">* Some total hours are computed from total distance using statistical correlation.</p>
 
         {{-- Pagination --}}
         @if($tractors->hasPages())

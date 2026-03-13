@@ -58,6 +58,14 @@ class TractorUsageDataSheet implements FromArray, WithHeadings, WithStyles, With
             '',
         ];
 
+        // Disclaimer row
+        $rows[] = array_fill(0, 10, '');
+        $rows[] = [
+            '',
+            '* Some total hours are computed from total distance using statistical correlation.',
+            '', '', '', '', '', '', '', '',
+        ];
+
         return $rows;
     }
 
@@ -169,6 +177,13 @@ class TractorUsageDataSheet implements FromArray, WithHeadings, WithStyles, With
 
         // Auto-filter on header
         $sheet->setAutoFilter("A1:J{$lastDataRow}");
+
+        // Disclaimer row
+        $disclaimerRow = $summaryRow + 2;
+        $sheet->mergeCells("B{$disclaimerRow}:J{$disclaimerRow}");
+        $sheet->getStyle("B{$disclaimerRow}")->applyFromArray([
+            'font' => ['italic' => true, 'size' => 9, 'color' => ['rgb' => '9CA3AF']],
+        ]);
 
         // Freeze top row
         $sheet->freezePane('A2');
