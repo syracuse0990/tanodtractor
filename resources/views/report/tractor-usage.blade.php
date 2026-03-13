@@ -49,7 +49,7 @@
             </div>
 
             {{-- Total Distance --}}
-            <div class="col-sm-2 col-lg">
+            <div class="col-sm-3 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
@@ -67,7 +67,7 @@
             </div>
 
             {{-- Running Hours --}}
-            <div class="col-sm-2 col-lg">
+            <div class="col-sm-3 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
@@ -85,7 +85,7 @@
             </div>
 
             {{-- With Usage Data --}}
-            <div class="col-sm-2 col-lg">
+            <div class="col-sm-3 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
@@ -108,7 +108,7 @@
             </div>
 
             {{-- PMS Due --}}
-            <div class="col-sm-2 col-lg">
+            <div class="col-sm-3 col-lg">
                 <div class="card rounded-4 border h-100">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
